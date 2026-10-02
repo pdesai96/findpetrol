@@ -65,7 +65,7 @@ async function getAllStations() {
   for (const raw of results.flat()) {
     const lat = Number(raw.location?.latitude);
     const lng = Number(raw.location?.longitude);
-    const price = raw.prices?.E10;
+    const price = raw.prices?.["E10"];
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
     if (typeof price !== "number" || price <= 0) continue;
     // UK mainland + Northern Ireland bounds (excludes Gibraltar etc.)

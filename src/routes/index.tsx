@@ -40,24 +40,32 @@ function Index() {
   );
   const [openStation, setOpenStation] = useState<string | null>(null);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+
   async function search(
     input: { town?: string; lat?: number; lng?: number },
     fresh = false,
   ) {
     setLastInput(input);
     setOpenStation(null);
-    setResult({ status: "loading" });
+    // Keep current results visible while refreshing so the user sees the update
+    if (fresh) setRefreshing(true);
+    else setResult({ status: "loading" });
     try {
       const res = await getFuelPrices({ data: { ...input, fresh } });
       if ("error" in res && res.error) {
         setResult({ status: "error", message: res.error });
       } else if ("stations" in res && res.stations) {
         setResult({ status: "done", stations: res.stations, placeLabel: res.placeLabel ?? null });
+        setUpdatedAt(new Date());
       } else {
         setResult({ status: "error", message: "Something went wrong. Please try again." });
       }
     } catch {
       setResult({ status: "error", message: "Something went wrong. Please try again." });
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -155,13 +163,20 @@ function Index() {
               </span>
               <button
                 type="button"
+                disabled={refreshing}
                 onClick={() => lastInput && search(lastInput, true)}
-                className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                className="ml-auto inline-flex shrink-0 touch-manipulation items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Refresh
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                {refreshing ? "Refreshing…" : "Refresh"}
               </button>
             </div>
+            {updatedAt && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Prices updated at{" "}
+                {updatedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              </p>
+            )}
 
             {cheapest !== null && (
               <div className="mt-4 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
@@ -177,7 +192,6 @@ function Index() {
               {result.stations.map((s, i) => {
                 const key = `${s.brand}-${s.postcode}-${i}`;
                 const isOpen = openStation === key;
-                const destination = encodeURIComponent(`${s.address}, ${s.postcode}, UK`);
                 return (
                   <li
                     key={key}
@@ -219,18 +233,17 @@ function Index() {
                     {isOpen && (
                       <div className="flex gap-2 border-t border-border px-4 py-3">
                         <a
-                          href={`https://maps.apple.com/?daddr=${s.lat},${s.lng}&q=${destination}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                          href={`https://maps.apple.com/?daddr=${s.lat},${s.lng}&dirflg=d`}
+                          target="_top"
+                          aria-label={`Open ${s.brand} in Apple Maps`}
+                          className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                         >
                           <Navigation className="h-4 w-4" />
                           Apple Maps
                         </a>
                         <a
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`}
+                          target="_top"
                           className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
                         >
                           <MapPin className="h-4 w-4" />

@@ -7,13 +7,13 @@ import { getFuelPrices, type FuelStation } from "../lib/fuel.functions";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "PumpWatch — Cheapest Petrol Near You" },
+      { title: "findpetrol — Cheapest Petrol Near You" },
       {
         name: "description",
         content:
           "Find the cheapest petrol prices near you. Search by UK town or use your current location to compare live fuel prices.",
       },
-      { property: "og:title", content: "PumpWatch — Cheapest Petrol Near You" },
+      { property: "og:title", content: "findpetrol — Cheapest Petrol Near You" },
       {
         property: "og:description",
         content:

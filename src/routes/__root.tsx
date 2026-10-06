@@ -78,9 +78,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PumpWatch — Cheapest Petrol Near You" },
+      { title: "findpetrol — Cheapest Petrol Near You" },
       { name: "description", content: "Find the cheapest petrol prices near you across the UK." },
-      { property: "og:title", content: "PumpWatch — Cheapest Petrol Near You" },
+      { property: "og:title", content: "findpetrol — Cheapest Petrol Near You" },
       { property: "og:description", content: "Find the cheapest petrol prices near you across the UK." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

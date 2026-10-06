@@ -56,8 +56,8 @@ async function fetchFeed(url: string): Promise<RawStation[]> {
   }
 }
 
-async function getAllStations() {
-  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.stations;
+async function getAllStations(fresh = false) {
+  if (!fresh && cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.stations;
 
   const results = await Promise.all(FEEDS.map(fetchFeed));
   const stations: Omit<FuelStation, "distanceKm">[] = [];
@@ -104,6 +104,7 @@ const inputSchema = z.object({
   town: z.string().optional(),
   lat: z.number().optional(),
   lng: z.number().optional(),
+  fresh: z.boolean().optional(),
 });
 
 export const getFuelPrices = createServerFn({ method: "GET" })

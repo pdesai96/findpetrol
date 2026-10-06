@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Fuel, Loader2, MapPin, Navigation, Search, TrendingDown } from "lucide-react";
+import { Fuel, Loader2, MapPin, Navigation, RefreshCw, Search, TrendingDown } from "lucide-react";
 
 import { getFuelPrices, type FuelStation } from "../lib/fuel.functions";
 
@@ -35,11 +35,20 @@ type Result =
 function Index() {
   const [town, setTown] = useState("");
   const [result, setResult] = useState<Result>({ status: "idle" });
+  const [lastInput, setLastInput] = useState<{ town?: string; lat?: number; lng?: number } | null>(
+    null,
+  );
+  const [openStation, setOpenStation] = useState<string | null>(null);
 
-  async function search(input: { town?: string; lat?: number; lng?: number }) {
+  async function search(
+    input: { town?: string; lat?: number; lng?: number },
+    fresh = false,
+  ) {
+    setLastInput(input);
+    setOpenStation(null);
     setResult({ status: "loading" });
     try {
-      const res = await getFuelPrices({ data: input });
+      const res = await getFuelPrices({ data: { ...input, fresh } });
       if ("error" in res && res.error) {
         setResult({ status: "error", message: res.error });
       } else if ("stations" in res && res.stations) {

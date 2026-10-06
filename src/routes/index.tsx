@@ -156,7 +156,6 @@ function Index() {
               <button
                 type="button"
                 onClick={() => lastInput && search(lastInput, true)}
-                disabled={result.status === "loading"}
                 className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
               >
                 <RefreshCw className="h-3.5 w-3.5" />

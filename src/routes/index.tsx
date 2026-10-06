@@ -97,7 +97,7 @@ function Index() {
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
             <Fuel className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">PumpWatch</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">findpetrol</h1>
         </div>
         <p className="mt-3 text-muted-foreground">
           Live unleaded (E10) prices from UK forecourts. Find the cheapest fill-up near you.

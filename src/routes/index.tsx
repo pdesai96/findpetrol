@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Fuel, Loader2, MapPin, Navigation, Search, TrendingDown } from "lucide-react";
+import { Fuel, Loader2, MapPin, Navigation, RefreshCw, Search, TrendingDown } from "lucide-react";
 
 import { getFuelPrices, type FuelStation } from "../lib/fuel.functions";
 
@@ -35,11 +35,20 @@ type Result =
 function Index() {
   const [town, setTown] = useState("");
   const [result, setResult] = useState<Result>({ status: "idle" });
+  const [lastInput, setLastInput] = useState<{ town?: string; lat?: number; lng?: number } | null>(
+    null,
+  );
+  const [openStation, setOpenStation] = useState<string | null>(null);
 
-  async function search(input: { town?: string; lat?: number; lng?: number }) {
+  async function search(
+    input: { town?: string; lat?: number; lng?: number },
+    fresh = false,
+  ) {
+    setLastInput(input);
+    setOpenStation(null);
     setResult({ status: "loading" });
     try {
-      const res = await getFuelPrices({ data: input });
+      const res = await getFuelPrices({ data: { ...input, fresh } });
       if ("error" in res && res.error) {
         setResult({ status: "error", message: res.error });
       } else if ("stations" in res && res.stations) {
@@ -144,6 +153,14 @@ function Index() {
               <span className="truncate">
                 {result.placeLabel ?? "Your current location"} — within 25 km
               </span>
+              <button
+                type="button"
+                onClick={() => lastInput && search(lastInput, true)}
+                className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Refresh
+              </button>
             </div>
 
             {cheapest !== null && (
@@ -157,42 +174,73 @@ function Index() {
             )}
 
             <ul className="mt-4 space-y-3">
-              {result.stations.map((s, i) => (
-                <li
-                  key={`${s.brand}-${s.postcode}-${i}`}
-                  className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 ${
-                    i === 0
-                      ? "border-primary/50 bg-primary/5"
-                      : "border-border bg-card"
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground">{s.brand}</span>
-                      {i === 0 && (
-                        <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">
-                          Cheapest
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                      {s.address}
-                      {s.postcode ? `, ${s.postcode}` : ""}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {s.distanceKm < 1
-                        ? `${Math.round(s.distanceKm * 1000)} m away`
-                        : `${s.distanceKm.toFixed(1)} km away`}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="text-2xl font-bold tabular-nums text-foreground">
-                      {s.price.toFixed(1)}
-                      <span className="text-sm font-medium text-muted-foreground">p/L</span>
-                    </div>
-                  </div>
-                </li>
-              ))}
+              {result.stations.map((s, i) => {
+                const key = `${s.brand}-${s.postcode}-${i}`;
+                const isOpen = openStation === key;
+                const destination = encodeURIComponent(`${s.address}, ${s.postcode}, UK`);
+                return (
+                  <li
+                    key={key}
+                    className={`overflow-hidden rounded-xl border ${
+                      i === 0 ? "border-primary/50 bg-primary/5" : "border-border bg-card"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenStation(isOpen ? null : key)}
+                      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent/50"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">{s.brand}</span>
+                          {i === 0 && (
+                            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">
+                              Cheapest
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                          {s.address}
+                          {s.postcode ? `, ${s.postcode}` : ""}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {s.distanceKm < 1
+                            ? `${Math.round(s.distanceKm * 1000)} m away`
+                            : `${s.distanceKm.toFixed(1)} km away`}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-2xl font-bold tabular-nums text-foreground">
+                          {s.price.toFixed(1)}
+                          <span className="text-sm font-medium text-muted-foreground">p/L</span>
+                        </div>
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <div className="flex gap-2 border-t border-border px-4 py-3">
+                        <a
+                          href={`https://maps.apple.com/?daddr=${s.lat},${s.lng}&q=${destination}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                        >
+                          <Navigation className="h-4 w-4" />
+                          Apple Maps
+                        </a>
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                        >
+                          <MapPin className="h-4 w-4" />
+                          Google Maps
+                        </a>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

@@ -7,13 +7,13 @@ import { getFuelPrices, type FuelStation } from "../lib/fuel.functions";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "PumpWatch — Cheapest Petrol Near You" },
+      { title: "findpetrol — Cheapest Petrol Near You" },
       {
         name: "description",
         content:
           "Find the cheapest petrol prices near you. Search by UK town or use your current location to compare live fuel prices.",
       },
-      { property: "og:title", content: "PumpWatch — Cheapest Petrol Near You" },
+      { property: "og:title", content: "findpetrol — Cheapest Petrol Near You" },
       {
         property: "og:description",
         content:
@@ -97,7 +97,7 @@ function Index() {
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
             <Fuel className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">PumpWatch</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">findpetrol</h1>
         </div>
         <p className="mt-3 text-muted-foreground">
           Live unleaded (E10) prices from UK forecourts. Find the cheapest fill-up near you.

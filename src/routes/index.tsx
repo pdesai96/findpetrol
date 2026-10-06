@@ -99,9 +99,6 @@ function Index() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">findpetrol</h1>
         </div>
-        <p className="mt-3 text-muted-foreground">
-          Live unleaded (E10) prices from UK forecourts. Find the cheapest fill-up near you.
-        </p>
 
         {/* Search */}
         <form

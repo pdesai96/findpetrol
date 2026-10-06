@@ -192,7 +192,6 @@ function Index() {
               {result.stations.map((s, i) => {
                 const key = `${s.brand}-${s.postcode}-${i}`;
                 const isOpen = openStation === key;
-                const destination = encodeURIComponent(`${s.address}, ${s.postcode}, UK`);
                 return (
                   <li
                     key={key}
@@ -236,7 +235,7 @@ function Index() {
                         <a
                           href={`https://maps.apple.com/?daddr=${s.lat},${s.lng}&dirflg=d`}
                           target="_top"
-                          aria-label={`Open ${s.brand} ${destination ? "" : ""}in Apple Maps`}
+                          aria-label={`Open ${s.brand} in Apple Maps`}
                           className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                         >
                           <Navigation className="h-4 w-4" />

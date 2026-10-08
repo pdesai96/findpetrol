@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Fuel, Loader2, MapPin, Navigation, RefreshCw, Search, TrendingDown } from "lucide-react";
 
 import { getFuelPrices, type FuelStation } from "../lib/fuel.functions";
@@ -41,6 +41,21 @@ function Index() {
   const [openStation, setOpenStation] = useState<string | null>(null);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [radiusMiles, setRadiusMiles] = useState(5);
+  const [sortBy, setSortBy] = useState<"price" | "distance">("price");
+  const [locating, setLocating] = useState(false);
+
+  // Auto-search with current location if the user has already granted permission
+  useEffect(() => {
+    if (!navigator.geolocation || !navigator.permissions?.query) return;
+    navigator.permissions
+      .query({ name: "geolocation" as PermissionName })
+      .then((p) => {
+        if (p.state === "granted") useMyLocation();
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   async function search(
@@ -75,19 +90,43 @@ function Index() {
       return;
     }
     setResult({ status: "loading" });
+    setLocating(true);
+    setTown("");
     navigator.geolocation.getCurrentPosition(
-      (pos) => search({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () =>
+      (pos) => {
+        setLocating(false);
+        search({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      (err) => {
+        setLocating(false);
         setResult({
           status: "error",
-          message: "Couldn't get your location. Check browser permissions, or search by town instead.",
-        }),
-      { timeout: 10000 },
+          message:
+            err.code === err.PERMISSION_DENIED
+              ? "Location access is blocked. On iPhone: Settings → Privacy → Location Services → Safari Websites → While Using. Or search by town instead."
+              : "Couldn't get your location. Try again, or search by town instead.",
+        });
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 5 * 60 * 1000 },
     );
   }
 
-  const cheapest =
-    result.status === "done" && result.stations.length > 0 ? result.stations[0]!.price : null;
+  const visible = useMemo(() => {
+    if (result.status !== "done") return [];
+    const maxKm = radiusMiles * 1.609344;
+    return result.stations
+      .filter((s) => s.distanceKm <= maxKm)
+      .sort((a, b) =>
+        sortBy === "price" ? a.price - b.price || a.distanceKm - b.distanceKm : a.distanceKm - b.distanceKm,
+      )
+      .slice(0, 25);
+  }, [result, radiusMiles, sortBy]);
+  const cheapestPrice = visible.length ? Math.min(...visible.map((s) => s.price)) : null;
+  const nearestKm = visible.length ? Math.min(...visible.map((s) => s.distanceKm)) : null;
+  const fmtMiles = (km: number) => {
+    const mi = km / 1.609344;
+    return mi < 0.1 ? "< 0.1 mi" : `${mi.toFixed(1)} mi`;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -140,7 +179,7 @@ function Index() {
         {result.status === "loading" && (
           <div className="mt-10 flex items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
-            <span>Fetching live prices…</span>
+            <span>{locating ? "Finding your location…" : "Fetching live prices…"}</span>
           </div>
         )}
 
@@ -156,7 +195,7 @@ function Index() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4 shrink-0" />
               <span className="truncate">
-                {result.placeLabel ?? "Your current location"} — within 25 km
+                {result.placeLabel?.split(",").slice(0, 2).join(",") ?? "Your current location"}
               </span>
               <button
                 type="button"
@@ -175,25 +214,77 @@ function Index() {
               </p>
             )}
 
-            {cheapest !== null && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">Within</span>
+              {[1, 3, 5, 10, 25].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setRadiusMiles(m)}
+                  className={`h-9 touch-manipulation rounded-full px-3 text-sm font-semibold transition-colors ${
+                    radiusMiles === m
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-card text-foreground hover:bg-accent"
+                  }`}
+                >
+                  {m} mi
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">Sort</span>
+              {(["price", "distance"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setSortBy(k)}
+                  className={`h-9 touch-manipulation rounded-full px-3 text-sm font-semibold transition-colors ${
+                    sortBy === k
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-card text-foreground hover:bg-accent"
+                  }`}
+                >
+                  {k === "price" ? "Cheapest" : "Nearest"}
+                </button>
+              ))}
+            </div>
+
+            {visible.length === 0 && (
+              <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                No stations within {radiusMiles} mi.{" "}
+                {radiusMiles < 25 && (
+                  <button
+                    type="button"
+                    className="font-semibold text-primary underline"
+                    onClick={() => setRadiusMiles([1, 3, 5, 10, 25].find((m) => m > radiusMiles)!)}
+                  >
+                    Widen search
+                  </button>
+                )}
+              </div>
+            )}
+
+            {cheapestPrice !== null && (
               <div className="mt-4 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
                 <TrendingDown className="h-5 w-5 text-primary" />
                 <span className="text-sm font-medium text-foreground">
-                  Cheapest: <span className="text-lg font-bold">{cheapest.toFixed(1)}p</span> per
-                  litre
+                  Cheapest within {radiusMiles} mi:{" "}
+                  <span className="text-lg font-bold">{cheapestPrice.toFixed(1)}p</span> per litre
                 </span>
               </div>
             )}
 
             <ul className="mt-4 space-y-3">
-              {result.stations.map((s, i) => {
+              {visible.map((s, i) => {
                 const key = `${s.brand}-${s.postcode}-${i}`;
                 const isOpen = openStation === key;
+                const isCheapest = s.price === cheapestPrice;
+                const isNearest = s.distanceKm === nearestKm;
                 return (
                   <li
                     key={key}
                     className={`overflow-hidden rounded-xl border ${
-                      i === 0 ? "border-primary/50 bg-primary/5" : "border-border bg-card"
+                      isCheapest ? "border-primary/50 bg-primary/5" : "border-border bg-card"
                     }`}
                   >
                     <button
@@ -204,9 +295,14 @@ function Index() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-foreground">{s.brand}</span>
-                          {i === 0 && (
+                          {isCheapest && (
                             <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">
                               Cheapest
+                            </span>
+                          )}
+                          {isNearest && (
+                            <span className="rounded-full border border-border px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                              Nearest
                             </span>
                           )}
                         </div>
@@ -215,9 +311,7 @@ function Index() {
                           {s.postcode ? `, ${s.postcode}` : ""}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          {s.distanceKm < 1
-                            ? `${Math.round(s.distanceKm * 1000)} m away`
-                            : `${s.distanceKm.toFixed(1)} km away`}
+                          {fmtMiles(s.distanceKm)} away
                         </p>
                       </div>
                       <div className="shrink-0 text-right">

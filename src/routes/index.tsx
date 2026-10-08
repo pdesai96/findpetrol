@@ -350,8 +350,8 @@ function Index() {
         )}
 
         <p className="mt-12 text-center text-xs text-muted-foreground">
-          Prices from retailer open-data feeds (Asda, Morrisons, JET, Esso, Applegreen), updated
-          throughout the day.
+          Prices from UK retailer open-data feeds (Asda, Tesco, Morrisons, Shell, Esso, JET,
+          Applegreen, MFG, Rontec, Moto, SGN and more), updated throughout the day.
         </p>
       </div>
     </div>

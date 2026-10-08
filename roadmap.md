@@ -1,0 +1,2 @@
+- [x] Expand retailer feeds
+- [ ] Add Waze navigation link

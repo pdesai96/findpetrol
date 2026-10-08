@@ -335,10 +335,19 @@ function Index() {
                         <a
                           href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`}
                           target="_top"
-                          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                          className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
                         >
                           <MapPin className="h-4 w-4" />
-                          Google Maps
+                          Google
+                        </a>
+                        <a
+                          href={`https://waze.com/ul?ll=${s.lat},${s.lng}&navigate=yes`}
+                          target="_top"
+                          aria-label={`Open ${s.brand} in Waze`}
+                          className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                        >
+                          <Navigation className="h-4 w-4" />
+                          Waze
                         </a>
                       </div>
                     )}

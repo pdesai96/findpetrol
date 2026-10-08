@@ -129,16 +129,16 @@ export const getFuelPrices = createServerFn({ method: "GET" })
     }
 
     const stations = await getAllStations(data.fresh === true);
-    const RADIUS_KM = 25;
+    const RADIUS_KM = 25 * 1.609344; // 25 miles
 
     const nearby: FuelStation[] = stations
       .map((s) => ({ ...s, distanceKm: haversineKm(lat!, lng!, s.lat, s.lng) }))
       .filter((s) => s.distanceKm <= RADIUS_KM)
-      .sort((a, b) => a.price - b.price)
-      .slice(0, 20);
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 150);
 
     if (nearby.length === 0) {
-      return { error: "No stations with live prices found within 25 km of that location." };
+      return { error: "No stations with live prices found within 25 miles of that location." };
     }
 
     return { stations: nearby, placeLabel, center: { lat, lng } };

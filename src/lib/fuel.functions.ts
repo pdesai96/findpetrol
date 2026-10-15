@@ -156,6 +156,9 @@ export const getFuelPrices = createServerFn({ method: "GET" })
     let lat = data.lat;
     let lng = data.lng;
     let placeLabel: string | null = null;
+    // Start loading prices while the town is being looked up
+    const stationsPromise = getAllStations(data.fresh === true);
+    stationsPromise.catch(() => {});
 
     if (data.town && data.town.trim()) {
       const geo = await geocodeTown(data.town.trim());
@@ -171,7 +174,7 @@ export const getFuelPrices = createServerFn({ method: "GET" })
       return { error: "Enter a town name or use your current location." };
     }
 
-    const stations = await getAllStations(data.fresh === true);
+    const stations = await stationsPromise;
     const RADIUS_KM = 25 * 1.609344; // 25 miles
 
     const nearby: FuelStation[] = stations

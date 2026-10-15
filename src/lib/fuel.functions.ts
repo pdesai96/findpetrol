@@ -478,7 +478,7 @@ export const getFavouritePrices = createServerFn({ method: "GET" })
   .inputValidator((data) => favsSchema.parse(data))
   .handler(async ({ data }) => {
     const { stations } = await getAllStations();
-    const matched: Array<{ lat: number; lng: number; station: FuelStation }> = [];
+    const matched: Array<{ lat: number; lng: number; station: Omit<FuelStation, "distanceKm"> }> = [];
     for (const fav of data.stations) {
       let best: { station: FuelStation; d: number } | null = null;
       for (const s of stations) {

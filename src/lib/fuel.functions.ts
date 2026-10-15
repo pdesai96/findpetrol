@@ -150,8 +150,8 @@ async function loadStations(fresh = false) {
     });
   }
 
-  cache = { at: Date.now(), stations };
-  return stations;
+  cache = { at: Date.now(), stations, missing };
+  return { stations, missing };
 }
 
 async function geocodeTown(town: string): Promise<{ lat: number; lng: number; label: string } | null> {

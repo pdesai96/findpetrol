@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Fuel, Loader2, MapPin, Navigation, RefreshCw, Search, TrendingDown } from "lucide-react";
 
-import { getFuelPrices, type FuelStation } from "../lib/fuel.functions";
+import { getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,7 +30,12 @@ type Result =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "done"; stations: FuelStation[]; placeLabel: string | null };
+  | {
+      status: "done";
+      stations: FuelStation[];
+      placeLabel: string | null;
+      missingRetailers: string[];
+    };
 
 function Index() {
   const [town, setTown] = useState("");

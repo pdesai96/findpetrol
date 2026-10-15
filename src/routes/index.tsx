@@ -80,7 +80,11 @@ function stationMapLinks(s: FuelStation) {
 // as a universal link, which it won't when the page sits inside a frame. So on
 // Apple devices we call the app's own link directly and only open the website
 // if nothing took over.
-function openMapApp(e: MouseEvent<HTMLAnchorElement>, link: { app: string; web: string }) {
+function openMapApp(
+  e: MouseEvent<HTMLAnchorElement>,
+  link: { app: string; web: string },
+  kind: MapKind,
+) {
   if (!isAppleDevice()) return; // elsewhere the web link already opens the app
   e.preventDefault();
   const frame = document.createElement("iframe");
@@ -88,6 +92,8 @@ function openMapApp(e: MouseEvent<HTMLAnchorElement>, link: { app: string; web: 
   frame.src = link.app;
   document.body.appendChild(frame);
   window.setTimeout(() => frame.remove(), 2000);
+  // Apple Maps is always present, so never second-guess it with the website.
+  if (kind === "apple") return;
   window.setTimeout(() => {
     // Still here, still focused: no app opened, so show the route in the browser
     if (!document.hidden && document.hasFocus()) window.location.href = link.web;

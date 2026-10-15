@@ -192,6 +192,9 @@ function Index() {
     const loaded = loadFavs();
     setFavs(loaded);
     refreshFavPrices();
+    // Keep favourite prices live while the page stays open
+    const interval = setInterval(refreshFavPrices, 60 * 1000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

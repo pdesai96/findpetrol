@@ -214,5 +214,11 @@ export const getFuelPrices = createServerFn({ method: "GET" })
       return { error: "No stations with live prices found within 25 miles of that location." };
     }
 
-    return { stations: nearby, placeLabel, center: { lat, lng } };
+    return { stations: nearby, placeLabel, center: { lat, lng }, missingRetailers: missing };
   });
+
+// Called when the page opens so prices are already loading before the user searches
+export const warmPrices = createServerFn({ method: "GET" }).handler(async () => {
+  await getAllStations();
+  return { ok: true };
+});

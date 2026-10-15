@@ -57,9 +57,10 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 const deadUntil = new Map<string, number>();
 const DEAD_TTL_MS = 30 * 60 * 1000;
 
-async function fetchFeed(url: string): Promise<RawStation[]> {
+async function fetchFeed(url: string, fresh = false): Promise<RawStation[]> {
   const dead = deadUntil.get(url);
-  if (dead && dead > Date.now()) return [];
+  // A manual refresh retries every feed, even ones that failed recently
+  if (!fresh && dead && dead > Date.now()) return [];
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(4000),

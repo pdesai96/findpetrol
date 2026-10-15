@@ -1,8 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Star, Sun, TrendingDown } from "lucide-react";
 
-import { getFavouritePrices, getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
+import { getFavouritePrices, getFuelPrices, warmPrices, type FuelStation, type FuelType } from "../lib/fuel.functions";
+
+const FUEL_OPTIONS: Array<{ id: FuelType; label: string }> = [
+  { id: "E10", label: "Unleaded" },
+  { id: "E5", label: "Premium" },
+  { id: "B7", label: "Diesel" },
+];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -176,6 +182,7 @@ function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const [radiusMiles, setRadiusMiles] = useState(5);
   const [sortBy, setSortBy] = useState<"price" | "distance">("price");
+  const [fuelType, setFuelType] = useState<FuelType>("E10");
   const [locating, setLocating] = useState(false);
   const [dark, setDark] = useState(true);
   const [favs, setFavs] = useState<FuelStation[]>([]);
@@ -199,6 +206,8 @@ function Index() {
 
   // Favourite prices are always live: look up the latest price for each saved
   // station and update both the list and the saved copy.
+  const fuelTypeRef = useRef<FuelType>("E10");
+  fuelTypeRef.current = fuelType;
   async function refreshFavPrices() {
     try {
       const current = loadFavs();
@@ -211,6 +220,7 @@ function Index() {
             lat,
             lng,
           })),
+          fuelType: fuelTypeRef.current,
         },
       });
       if (!("updates" in res) || !res.updates) return;
@@ -297,7 +307,7 @@ function Index() {
     if (fresh) setRefreshing(true);
     else setResult({ status: "loading" });
     try {
-      const res = await getFuelPrices({ data: { ...input, fresh } });
+      const res = await getFuelPrices({ data: { ...input, fresh, fuelType: fuelTypeRef.current } });
       if ("error" in res && res.error) {
         setResult({ status: "error", message: res.error });
       } else if ("stations" in res && res.stations) {
@@ -426,6 +436,31 @@ function Index() {
           <Navigation className="h-4 w-4" />
           Use my current location
         </button>
+
+        {/* Fuel type */}
+        <div className="mt-4 grid grid-cols-3 gap-1.5" role="group" aria-label="Fuel type">
+          {FUEL_OPTIONS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              aria-pressed={fuelType === f.id}
+              onClick={() => {
+                setFuelType(f.id);
+                fuelTypeRef.current = f.id;
+                // Re-run the current search for the newly picked fuel
+                if (lastInput) search(lastInput);
+                refreshFavPrices();
+              }}
+              className={`h-11 touch-manipulation rounded-xl text-sm font-semibold transition-colors ${
+                fuelType === f.id
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-card text-foreground hover:bg-accent"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
         {/* Favourites — the three cheapest stations you've starred */}
         {topFavs.length > 0 && (

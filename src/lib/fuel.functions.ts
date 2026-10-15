@@ -1,13 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+// Fuel types we support: E10 unleaded, E5 premium unleaded, B7 diesel
+export const FUEL_TYPES = ["E10", "E5", "B7"] as const;
+export type FuelType = (typeof FUEL_TYPES)[number];
+
 export type FuelStation = {
   brand: string;
   address: string;
   postcode: string;
   lat: number;
   lng: number;
-  price: number; // pence per litre, E10 petrol
+  price: number; // pence per litre, for the fuel type that was searched
+  prices?: Record<string, number>; // all known prices by fuel code
   distanceKm: number;
   driveMins?: number; // live traffic-aware drive time, when available
   openNow?: boolean | undefined; // from TomTom's place directory, when known
@@ -191,21 +196,24 @@ async function fetchFuelFinder(): Promise<FeedResult & { configured: boolean }> 
       ffFetchAll("pfs", token),
       ffFetchAll("pfs/fuel-prices", token),
     ]);
-    const priceById = new Map<string, number>();
+    const priceById = new Map<string, Record<string, number>>();
     for (const p of prices) {
       const id = String(pick(p, "node_id", "nodeId", "id") ?? "");
       const list = (pick(p, "fuel_prices", "prices") ?? []) as any[];
-      const e10 = Array.isArray(list)
-        ? list.find((f) => String(pick(f, "fuel_type", "fuelType") ?? "").toUpperCase() === "E10")
-        : undefined;
-      const price = Number(pick(e10, "price", "value"));
-      if (id && Number.isFinite(price)) priceById.set(id, price);
+      if (!id || !Array.isArray(list)) continue;
+      const rec: Record<string, number> = {};
+      for (const f of list) {
+        const code = String(pick(f, "fuel_type", "fuelType") ?? "").toUpperCase();
+        const price = Number(pick(f, "price", "value"));
+        if (FUEL_TYPES.includes(code as FuelType) && Number.isFinite(price)) rec[code] = price;
+      }
+      if (Object.keys(rec).length > 0) priceById.set(id, rec);
     }
     const stations: RawStation[] = [];
     for (const s of sites) {
       const id = String(pick(s, "node_id", "nodeId", "id") ?? "");
-      const price = priceById.get(id);
-      if (price == null) continue;
+      const prices = priceById.get(id);
+      if (prices == null) continue;
       const loc = s.location ?? s;
       const address = [pick(loc, "address_line_1", "address"), pick(loc, "address_line_2"), pick(loc, "city", "town")]
         .filter(Boolean)
@@ -215,7 +223,7 @@ async function fetchFuelFinder(): Promise<FeedResult & { configured: boolean }> 
         address,
         postcode: pick(loc, "postcode", "post_code") ?? "",
         location: { latitude: pick(loc, "latitude", "lat"), longitude: pick(loc, "longitude", "lng", "lon") },
-        prices: { E10: price },
+        prices,
       });
     }
     return { stations, failed: stations.length === 0, configured: true };
@@ -242,11 +250,17 @@ async function loadStations(fresh = false) {
   for (const raw of [ff, ...results].flatMap((r) => r.stations)) {
     const lat = Number(raw.location?.latitude);
     const lng = Number(raw.location?.longitude);
-    let price = Number(raw.prices?.["E10"]);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-    if (!Number.isFinite(price) || price <= 0) continue;
-    if (price < 10) price *= 100; // some feeds report pounds
-    if (price < 80 || price > 300) continue; // discard obviously bad data
+    // Keep every known fuel price, normalised to pence per litre
+    const prices: Record<string, number> = {};
+    for (const code of FUEL_TYPES) {
+      let p = Number(raw.prices?.[code]);
+      if (!Number.isFinite(p) || p <= 0) continue;
+      if (p < 10) p *= 100; // some feeds report pounds
+      if (p < 80 || p > 300) continue; // discard obviously bad data
+      prices[code] = p;
+    }
+    if (Object.keys(prices).length === 0) continue;
     // UK mainland + Northern Ireland bounds (excludes Gibraltar etc.)
     if (lat < 49.8 || lat > 60.9 || lng < -8.7 || lng > 1.9) continue;
     const dedupeKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
@@ -258,7 +272,8 @@ async function loadStations(fresh = false) {
       postcode: raw.postcode ?? "",
       lat,
       lng,
-      price,
+      price: prices["E10"] ?? Object.values(prices)[0]!,
+      prices,
     });
   }
 
@@ -408,6 +423,7 @@ const inputSchema = z.object({
   lat: z.number().optional(),
   lng: z.number().optional(),
   fresh: z.boolean().optional(),
+  fuelType: z.enum(FUEL_TYPES).optional(),
 });
 
 export const getFuelPrices = createServerFn({ method: "GET" })
@@ -436,15 +452,19 @@ export const getFuelPrices = createServerFn({ method: "GET" })
 
     const { stations, missing } = await stationsPromise;
     const RADIUS_KM = 25 * 1.609344; // 25 miles
+    const fuelType: FuelType = data.fuelType ?? "E10";
+    const fuelName =
+      fuelType === "B7" ? "diesel" : fuelType === "E5" ? "premium unleaded" : "unleaded";
 
     const nearby: FuelStation[] = stations
       .map((s) => ({ ...s, distanceKm: haversineKm(lat!, lng!, s.lat, s.lng) }))
-      .filter((s) => s.distanceKm <= RADIUS_KM)
+      .filter((s) => s.distanceKm <= RADIUS_KM && s.prices?.[fuelType] != null)
+      .map((s) => ({ ...s, price: s.prices![fuelType]! }))
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, 150);
 
     if (nearby.length === 0) {
-      return { error: "No stations with live prices found within 25 miles of that location." };
+      return { error: `No stations with live ${fuelName} prices found within 25 miles of that location.` };
     }
 
     // Live traffic-aware drive times for the closest 25 (the most anyone browses)
@@ -472,12 +492,14 @@ const favsSchema = z.object({
       }),
     )
     .max(50),
+  fuelType: z.enum(FUEL_TYPES).optional(),
 });
 
 export const getFavouritePrices = createServerFn({ method: "GET" })
   .inputValidator((data) => favsSchema.parse(data))
   .handler(async ({ data }) => {
     const { stations } = await getAllStations();
+    const fuelType: FuelType = data.fuelType ?? "E10";
     const matched: Array<{ lat: number; lng: number; station: Omit<FuelStation, "distanceKm"> }> = [];
     for (const fav of data.stations) {
       let best: { station: Omit<FuelStation, "distanceKm">; d: number } | null = null;
@@ -492,7 +514,7 @@ export const getFavouritePrices = createServerFn({ method: "GET" })
     const updates = matched.map(({ lat, lng, station }) => ({
       lat,
       lng,
-      price: station.price,
+      price: station.prices?.[fuelType] ?? station.price,
       ...(station.openNow != null ? { openNow: station.openNow } : {}),
     }));
     return { updates };

@@ -301,9 +301,13 @@ async function addDriveTimes(stations: FuelStation[], lat: number, lng: number) 
           `https://api.tomtom.com/routing/1/calculateRoute/${lat},${lng}:${s.lat},${s.lng}/json?key=${key}&traffic=true&travelMode=car&routeType=fastest`,
           { signal: AbortSignal.timeout(4000) },
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.error("TomTom route failed", res.status, (await res.text()).slice(0, 200));
+          return;
+        }
         const json = (await res.json()) as any;
         const secs = json?.routes?.[0]?.summary?.travelTimeInSeconds;
+        if (!Number.isFinite(secs)) console.error("TomTom no time", JSON.stringify(json).slice(0, 200));
         if (Number.isFinite(secs)) {
           times.set(`${s.lat.toFixed(4)},${s.lng.toFixed(4)}`, Math.max(1, Math.round(secs / 60)));
         }

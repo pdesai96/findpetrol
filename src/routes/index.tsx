@@ -220,7 +220,7 @@ function Index() {
           const u = res.updates.find(
             (u) => Math.abs(u.lat - f.lat) < 1e-4 && Math.abs(u.lng - f.lng) < 1e-4,
           );
-          return u ? { ...f, price: u.price } : f;
+          return u ? { ...f, price: u.price, openNow: u.openNow } : f;
         });
         try {
           localStorage.setItem(FAV_KEY, JSON.stringify(next));
@@ -243,6 +243,8 @@ function Index() {
       } catch {}
       return next;
     });
+    // Fetch the live price and open/closed status straight away for a new favourite
+    refreshFavPrices();
   }
 
   // Show the three cheapest saved stations
@@ -442,10 +444,17 @@ function Index() {
                     key={id}
                     className="overflow-hidden rounded-xl border border-border bg-card"
                   >
-                    <button
-                      type="button"
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setOpenFav(isOpen ? null : id)}
-                      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent/50"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setOpenFav(isOpen ? null : id);
+                        }
+                      }}
+                      className="flex w-full cursor-pointer items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent/50"
                     >
                       <div className="min-w-0">
                         <span className="font-semibold text-foreground">{s.brand}</span>
@@ -453,14 +462,41 @@ function Index() {
                           {s.address}
                           {s.postcode ? `, ${s.postcode}` : ""}
                         </p>
+                        {s.openNow != null && (
+                          <p
+                            className={`mt-0.5 flex items-center gap-1 text-xs font-semibold ${
+                              s.openNow ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                                s.openNow ? "bg-green-500" : "bg-red-500"
+                              }`}
+                            />
+                            {s.openNow ? "Open now" : "Closed"}
+                          </p>
+                        )}
                       </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-2xl font-bold tabular-nums text-foreground">
-                          {s.price.toFixed(1)}
-                          <span className="text-sm font-medium text-muted-foreground">p/L</span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className="text-right">
+                          <div className="text-2xl font-bold tabular-nums text-foreground">
+                            {s.price.toFixed(1)}
+                            <span className="text-sm font-medium text-muted-foreground">p/L</span>
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${s.brand} from favourites`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFav(s);
+                          }}
+                          className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                        >
+                          <Star className="h-5 w-5 fill-primary text-primary" />
+                        </button>
                       </div>
-                    </button>
+                    </div>
                     {isOpen && <MapButtons station={s} />}
                   </li>
                 );

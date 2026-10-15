@@ -478,14 +478,22 @@ export const getFavouritePrices = createServerFn({ method: "GET" })
   .inputValidator((data) => favsSchema.parse(data))
   .handler(async ({ data }) => {
     const { stations } = await getAllStations();
-    const updates: Array<{ lat: number; lng: number; price: number }> = [];
+    const matched: Array<{ lat: number; lng: number; station: FuelStation }> = [];
     for (const fav of data.stations) {
-      let best: { price: number; d: number } | null = null;
+      let best: { station: FuelStation; d: number } | null = null;
       for (const s of stations) {
         const d = haversineKm(fav.lat, fav.lng, s.lat, s.lng);
-        if (d < 0.15 && (!best || d < best.d)) best = { price: s.price, d };
+        if (d < 0.15 && (!best || d < best.d)) best = { station: s, d };
       }
-      if (best) updates.push({ lat: fav.lat, lng: fav.lng, price: best.price });
+      if (best) matched.push({ lat: fav.lat, lng: fav.lng, station: best.station });
     }
+    // Open/closed status for the matched stations, same lookup the search uses
+    await addOpenStatus(matched.map((m) => m.station));
+    const updates = matched.map(({ lat, lng, station }) => ({
+      lat,
+      lng,
+      price: station.price,
+      ...(station.openNow != null ? { openNow: station.openNow } : {}),
+    }));
     return { updates };
   });

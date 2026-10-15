@@ -220,7 +220,7 @@ function Index() {
           const u = res.updates.find(
             (u) => Math.abs(u.lat - f.lat) < 1e-4 && Math.abs(u.lng - f.lng) < 1e-4,
           );
-          return u ? { ...f, price: u.price } : f;
+          return u ? { ...f, price: u.price, openNow: u.openNow } : f;
         });
         try {
           localStorage.setItem(FAV_KEY, JSON.stringify(next));

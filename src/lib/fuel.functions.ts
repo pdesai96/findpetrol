@@ -53,10 +53,16 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Feeds that failed recently are skipped for a while so they don't slow every search
+const deadUntil = new Map<string, number>();
+const DEAD_TTL_MS = 30 * 60 * 1000;
+
 async function fetchFeed(url: string): Promise<RawStation[]> {
+  const dead = deadUntil.get(url);
+  if (dead && dead > Date.now()) return [];
   try {
     const res = await fetch(url, {
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(4000),
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
@@ -64,17 +70,32 @@ async function fetchFeed(url: string): Promise<RawStation[]> {
       },
       redirect: "follow",
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      deadUntil.set(url, Date.now() + DEAD_TTL_MS);
+      return [];
+    }
     const json = (await res.json()) as { stations?: RawStation[] };
     return json.stations ?? [];
   } catch {
+    deadUntil.set(url, Date.now() + DEAD_TTL_MS);
     return [];
   }
 }
 
+let inflight: Promise<Omit<FuelStation, "distanceKm">[]> | null = null;
+
 async function getAllStations(fresh = false) {
   if (!fresh && cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.stations;
+  // Stale data: serve instantly, refresh in the background
+  if (!fresh && cache) {
+    if (!inflight) inflight = loadStations().finally(() => (inflight = null));
+    return cache.stations;
+  }
+  if (!inflight) inflight = loadStations().finally(() => (inflight = null));
+  return inflight;
+}
 
+async function loadStations() {
   const results = await Promise.all(FEEDS.map(fetchFeed));
   const stations: Omit<FuelStation, "distanceKm">[] = [];
   const seen = new Set<string>();

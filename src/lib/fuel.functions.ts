@@ -19,26 +19,39 @@ type RawStation = {
   prices?: Record<string, number | string | undefined>;
 };
 
-const FEEDS = [
-  "https://storelocator.asda.com/fuel_prices_data.json",
-  "https://www.morrisons.com/fuel-prices/fuel.json",
-  "https://jetlocal.co.uk/fuel_prices_data.json",
-  "https://fuelprices.esso.co.uk/latestdata.json",
-  "https://applegreenstores.com/fuel-prices/data.json",
-  "https://www.tesco.com/fuel_prices/fuel_prices_data.json",
-  "https://www.shell.co.uk/fuel-prices-data.html",
-  "https://fuel.motorfuelgroup.com/fuel_prices_data.json",
-  "https://www.rontec-servicestations.co.uk/fuel-prices/data/fuel_prices_data.json",
-  "https://moto-way.com/fuel-price/fuel_prices.json",
-  "https://www.sgnretail.uk/files/data/SGN_daily_fuel_prices.json",
+const FEEDS: Array<{ url: string; retailer: string }> = [
+  { url: "https://storelocator.asda.com/fuel_prices_data.json", retailer: "Asda" },
+  { url: "https://www.morrisons.com/fuel-prices/fuel.json", retailer: "Morrisons" },
+  { url: "https://jetlocal.co.uk/fuel_prices_data.json", retailer: "JET" },
+  { url: "https://fuelprices.esso.co.uk/latestdata.json", retailer: "Esso" },
+  { url: "https://applegreenstores.com/fuel-prices/data.json", retailer: "Applegreen" },
+  { url: "https://www.tesco.com/fuel_prices/fuel_prices_data.json", retailer: "Tesco" },
+  { url: "https://www.shell.co.uk/fuel-prices-data.html", retailer: "Shell" },
+  { url: "https://fuel.motorfuelgroup.com/fuel_prices_data.json", retailer: "MFG" },
+  {
+    url: "https://www.rontec-servicestations.co.uk/fuel-prices/data/fuel_prices_data.json",
+    retailer: "Rontec",
+  },
+  { url: "https://moto-way.com/fuel-price/fuel_prices.json", retailer: "Moto" },
+  { url: "https://www.sgnretail.uk/files/data/SGN_daily_fuel_prices.json", retailer: "SGN" },
   // These currently block or time out from servers; kept so they're used if they come back
-  "https://api.sainsburys.co.uk/v1/exports/latest/fuel_prices_data.json",
-  "https://www.bp.com/en_gb/united-kingdom/home/fuelprices/fuel_prices_data.json",
-  "https://fuelprices.asconagroup.co.uk/newfuel.json",
-  "https://api2.krlmedia.com/integration/live_price/krl",
+  {
+    url: "https://api.sainsburys.co.uk/v1/exports/latest/fuel_prices_data.json",
+    retailer: "Sainsbury's",
+  },
+  {
+    url: "https://www.bp.com/en_gb/united-kingdom/home/fuelprices/fuel_prices_data.json",
+    retailer: "BP",
+  },
+  { url: "https://fuelprices.asconagroup.co.uk/newfuel.json", retailer: "Ascona" },
+  { url: "https://api2.krlmedia.com/integration/live_price/krl", retailer: "Karan" },
 ];
 
-let cache: { at: number; stations: Omit<FuelStation, "distanceKm">[] } | null = null;
+let cache: {
+  at: number;
+  stations: Omit<FuelStation, "distanceKm">[];
+  missing: string[];
+} | null = null;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {

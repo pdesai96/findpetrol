@@ -452,15 +452,19 @@ export const getFuelPrices = createServerFn({ method: "GET" })
 
     const { stations, missing } = await stationsPromise;
     const RADIUS_KM = 25 * 1.609344; // 25 miles
+    const fuelType: FuelType = data.fuelType ?? "E10";
+    const fuelName =
+      fuelType === "B7" ? "diesel" : fuelType === "E5" ? "premium unleaded" : "unleaded";
 
     const nearby: FuelStation[] = stations
       .map((s) => ({ ...s, distanceKm: haversineKm(lat!, lng!, s.lat, s.lng) }))
-      .filter((s) => s.distanceKm <= RADIUS_KM)
+      .filter((s) => s.distanceKm <= RADIUS_KM && s.prices?.[fuelType] != null)
+      .map((s) => ({ ...s, price: s.prices![fuelType]! }))
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, 150);
 
     if (nearby.length === 0) {
-      return { error: "No stations with live prices found within 25 miles of that location." };
+      return { error: `No stations with live ${fuelName} prices found within 25 miles of that location.` };
     }
 
     // Live traffic-aware drive times for the closest 25 (the most anyone browses)

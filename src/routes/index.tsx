@@ -7,18 +7,19 @@ import { getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functio
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "findpetrol — Cheapest Petrol Near You" },
+      { title: "findfuel — Cheapest Fuel Near You" },
       {
         name: "description",
         content:
-          "Find the cheapest petrol prices near you. Search by UK town or use your current location to compare live fuel prices.",
+          "Find the cheapest fuel prices near you. Search by UK town or use your current location to compare live prices.",
       },
-      { property: "og:title", content: "findpetrol — Cheapest Petrol Near You" },
+      { property: "og:title", content: "findfuel — Cheapest Fuel Near You" },
       {
         property: "og:description",
         content:
-          "Find the cheapest petrol prices near you. Search by UK town or use your current location to compare live fuel prices.",
+          "Find the cheapest fuel prices near you. Search by UK town or use your current location to compare live prices.",
       },
+
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -329,13 +330,13 @@ function Index() {
             <button
               type="button"
               onClick={goHome}
-              aria-label="findpetrol — go to homepage"
+              aria-label="findfuel — go to homepage"
               className="flex items-center gap-3 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
                 <Fuel className="h-6 w-6 text-primary-foreground" />
               </span>
-              <span>findpetrol</span>
+              <span>findfuel</span>
             </button>
           </h1>
 

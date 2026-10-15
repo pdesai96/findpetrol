@@ -177,16 +177,16 @@ function Index() {
   const [radiusMiles, setRadiusMiles] = useState(5);
   const [sortBy, setSortBy] = useState<"price" | "distance">("price");
   const [locating, setLocating] = useState(false);
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(true);
   const [favs, setFavs] = useState<FuelStation[]>([]);
   const [openFav, setOpenFav] = useState<string | null>(null);
 
-  // Restore saved theme, or fall back to the device preference, on first paint
+  // Restore saved theme; dark is the default unless the user picked light
   useEffect(() => {
     const saved = localStorage.getItem("findpetrol-theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = saved ? saved === "dark" : prefersDark;
+    const isDark = saved !== "light";
     setDark(isDark);
+
     document.documentElement.classList.toggle("dark", isDark);
     const loaded = loadFavs();
     setFavs(loaded);

@@ -4,3 +4,4 @@
 - [x] Auto-refresh favourite prices while the page is open (every 60s)
 - [x] Fix padding around the Apple Maps button
 - [x] Make all 3 map buttons the same size
+- [x] Default to dark theme (light still remembered if chosen)

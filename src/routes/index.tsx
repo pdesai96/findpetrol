@@ -177,16 +177,16 @@ function Index() {
   const [radiusMiles, setRadiusMiles] = useState(5);
   const [sortBy, setSortBy] = useState<"price" | "distance">("price");
   const [locating, setLocating] = useState(false);
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(true);
   const [favs, setFavs] = useState<FuelStation[]>([]);
   const [openFav, setOpenFav] = useState<string | null>(null);
 
-  // Restore saved theme, or fall back to the device preference, on first paint
+  // Restore saved theme; dark is the default unless the user picked light
   useEffect(() => {
     const saved = localStorage.getItem("findpetrol-theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = saved ? saved === "dark" : prefersDark;
+    const isDark = saved !== "light";
     setDark(isDark);
+
     document.documentElement.classList.toggle("dark", isDark);
     const loaded = loadFavs();
     setFavs(loaded);
@@ -412,7 +412,7 @@ function Index() {
           <button
             type="submit"
             disabled={result.status === "loading" || !town.trim()}
-            className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:bg-card disabled:text-muted-foreground"
           >
             Search
           </button>

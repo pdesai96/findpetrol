@@ -96,7 +96,7 @@ async function getAllStations(fresh = false) {
   return inflight;
 }
 
-async function loadStations() {
+async function loadStations(fresh = false) {
   const results = await Promise.all(FEEDS.map((url) => fetchFeed(url, fresh)));
   const stations: Omit<FuelStation, "distanceKm">[] = [];
   const seen = new Set<string>();

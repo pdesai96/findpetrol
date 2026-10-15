@@ -261,6 +261,21 @@ function Index() {
               ))}
             </div>
 
+            {result.missingRetailers.length > 0 && (
+              <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                Couldn't load prices from {result.missingRetailers.join(", ")} right now — their
+                stations may be missing.{" "}
+                <button
+                  type="button"
+                  disabled={refreshing}
+                  className="font-semibold text-primary underline disabled:opacity-50"
+                  onClick={() => lastInput && search(lastInput, true)}
+                >
+                  Retry them
+                </button>
+              </div>
+            )}
+
             {visible.length === 0 && (
               <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                 No stations within {radiusMiles} mi.{" "}

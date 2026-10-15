@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Star, Sun, TrendingDown } from "lucide-react";
 
-import { getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
+import { getFavouritePrices, getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -189,8 +189,45 @@ function Index() {
     const isDark = saved ? saved === "dark" : prefersDark;
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
-    setFavs(loadFavs());
+    const loaded = loadFavs();
+    setFavs(loaded);
+    refreshFavPrices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Favourite prices are always live: look up the latest price for each saved
+  // station and update both the list and the saved copy.
+  async function refreshFavPrices() {
+    try {
+      const current = loadFavs();
+      if (current.length === 0) return;
+      const res = await getFavouritePrices({
+        data: {
+          stations: current.map(({ brand, postcode, lat, lng }) => ({
+            brand,
+            postcode: postcode ?? "",
+            lat,
+            lng,
+          })),
+        },
+      });
+      if (!("updates" in res) || !res.updates) return;
+      setFavs((prev) => {
+        const next = prev.map((f) => {
+          const u = res.updates.find(
+            (u) => Math.abs(u.lat - f.lat) < 1e-4 && Math.abs(u.lng - f.lng) < 1e-4,
+          );
+          return u ? { ...f, price: u.price } : f;
+        });
+        try {
+          localStorage.setItem(FAV_KEY, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    } catch {
+      // keep showing the saved prices if the refresh fails
+    }
+  }
 
   function toggleFav(s: FuelStation) {
     setFavs((prev) => {
@@ -427,7 +464,7 @@ function Index() {
               })}
             </ul>
             <p className="mt-2 text-xs text-muted-foreground">
-              Prices from when you saved them — tap the star on any station to add or remove it.
+              Live prices, refreshed when you open the app — tap the star on any station to add or remove it.
             </p>
 
           </div>

@@ -10,6 +10,7 @@ export type FuelStation = {
   price: number; // pence per litre, E10 petrol
   distanceKm: number;
   driveMins?: number; // live traffic-aware drive time, when available
+  openNow?: boolean; // from TomTom's place directory, when known
 };
 
 type RawStation = {

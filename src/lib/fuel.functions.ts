@@ -1,13 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+// Fuel types we support: E10 unleaded, E5 premium unleaded, B7 diesel
+export const FUEL_TYPES = ["E10", "E5", "B7"] as const;
+export type FuelType = (typeof FUEL_TYPES)[number];
+
 export type FuelStation = {
   brand: string;
   address: string;
   postcode: string;
   lat: number;
   lng: number;
-  price: number; // pence per litre, E10 petrol
+  price: number; // pence per litre, for the fuel type that was searched
+  prices?: Record<string, number>; // all known prices by fuel code
   distanceKm: number;
   driveMins?: number; // live traffic-aware drive time, when available
   openNow?: boolean | undefined; // from TomTom's place directory, when known

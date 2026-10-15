@@ -112,6 +112,59 @@ function openMapApp(
   window.addEventListener("pagehide", () => window.clearTimeout(timer), { once: true });
 }
 
+// Favourites are saved on the device so they survive between visits. We keep a
+// snapshot of the station (brand, address, price, position) so they can be
+// shown even before a search has run.
+const FAV_KEY = "findpetrol-favs";
+
+function favId(s: FuelStation) {
+  return `${s.brand}|${s.postcode ?? ""}|${s.lat.toFixed(4)},${s.lng.toFixed(4)}`;
+}
+
+function loadFavs(): FuelStation[] {
+  try {
+    const raw = localStorage.getItem(FAV_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// The three map buttons shared by result cards and favourite cards.
+function MapButtons({ station }: { station: FuelStation }) {
+  return (
+    <div className="flex gap-2 border-t border-border px-4 py-3">
+      {MAP_KINDS.map((kind) => {
+        const link = stationMapLinks(station)[kind];
+        const meta = MAP_META[kind];
+        return (
+          <a
+            key={kind}
+            href={link.web}
+            target="_top"
+            onClick={(e) => openMapApp(e, link, kind)}
+            aria-label={`Open ${station.brand} in ${meta.label}`}
+            className={
+              meta.primary
+                ? "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                : "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+            }
+          >
+            {kind === "google" ? (
+              <MapPin className="h-4 w-4" />
+            ) : (
+              <Navigation className="h-4 w-4" />
+            )}
+            {meta.short}
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 function Index() {
   const [town, setTown] = useState("");
   const [result, setResult] = useState<Result>({ status: "idle" });

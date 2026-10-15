@@ -92,7 +92,7 @@ async function getAllStations(fresh = false) {
     if (!inflight) inflight = loadStations().finally(() => (inflight = null));
     return cache.stations;
   }
-  if (!inflight) inflight = loadStations().finally(() => (inflight = null));
+  if (!inflight) inflight = loadStations(fresh).finally(() => (inflight = null));
   return inflight;
 }
 

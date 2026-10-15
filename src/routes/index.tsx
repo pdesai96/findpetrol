@@ -136,9 +136,9 @@ function loadFavs(): FuelStation[] {
 // The three map buttons shared by result cards and favourite cards.
 function MapButtons({ station }: { station: FuelStation }) {
   const base =
-    "inline-flex h-11 touch-manipulation items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-semibold whitespace-nowrap transition-colors";
+    "inline-flex h-11 touch-manipulation items-center justify-center rounded-lg px-2.5 text-[13px] font-semibold whitespace-nowrap transition-colors";
   return (
-    <div className="flex gap-1.5 border-t border-border px-4 py-3">
+    <div className="grid grid-cols-3 gap-1.5 border-t border-border px-4 py-3">
       {MAP_KINDS.map((kind) => {
         const link = stationMapLinks(station)[kind];
         const meta = MAP_META[kind];
@@ -151,22 +151,18 @@ function MapButtons({ station }: { station: FuelStation }) {
             aria-label={`Open ${station.brand} in ${meta.label}`}
             className={
               meta.primary
-                ? `${base} flex-[1.4] bg-primary text-primary-foreground hover:bg-primary/90`
-                : `${base} flex-1 border border-border text-foreground hover:bg-accent`
+                ? `${base} bg-primary text-primary-foreground hover:bg-primary/90`
+                : `${base} border border-border text-foreground hover:bg-accent`
             }
           >
-            {kind === "google" ? (
-              <MapPin className="h-4 w-4 shrink-0" />
-            ) : (
-              <Navigation className="h-4 w-4 shrink-0" />
-            )}
-            {meta.short}
+            {meta.label}
           </a>
         );
       })}
     </div>
   );
 }
+
 
 
 function Index() {

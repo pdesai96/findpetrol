@@ -121,13 +121,123 @@ async function getAllStations(fresh = false) {
   return inflight;
 }
 
+// ---- Official government Fuel Finder API (covers every UK forecourt) ----
+const FF_BASE = "https://www.fuel-finder.service.gov.uk/api/v1";
+let ffToken: { value: string; exp: number } | null = null;
+
+async function getFuelFinderToken(): Promise<string | null> {
+  if (ffToken && ffToken.exp > Date.now()) return ffToken.value;
+  const id = process.env["FUEL_FINDER_CLIENT_ID"];
+  const secret = process.env["FUEL_FINDER_CLIENT_SECRET"];
+  if (!id || !secret) return null;
+  const res = await fetch(`${FF_BASE}/oauth/generate_access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ client_id: id, client_secret: secret }),
+    signal: AbortSignal.timeout(6000),
+  });
+  if (!res.ok) {
+    console.error("Fuel Finder token failed", res.status);
+    return null;
+  }
+  const json = (await res.json()) as any;
+  const d = json?.data ?? json;
+  const value = d?.access_token as string | undefined;
+  if (!value) return null;
+  const expiresIn = Number(d?.expires_in) || 3600;
+  ffToken = { value, exp: Date.now() + (expiresIn - 60) * 1000 };
+  return value;
+}
+
+async function ffFetchAll(path: string, token: string): Promise<any[]> {
+  const out: any[] = [];
+  const BATCH_GROUP = 4;
+  for (let start = 1; start <= 60; start += BATCH_GROUP) {
+    const pages = await Promise.all(
+      Array.from({ length: BATCH_GROUP }, async (_, i) => {
+        const res = await fetch(`${FF_BASE}/${path}?batch-number=${start + i}`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (res.status === 404) return [];
+        if (!res.ok) throw new Error(`Fuel Finder ${path} ${res.status}`);
+        const j = (await res.json()) as any;
+        return (Array.isArray(j) ? j : (j?.data ?? j?.results ?? [])) as any[];
+      }),
+    );
+    let done = false;
+    for (const p of pages) {
+      out.push(...p);
+      if (p.length === 0) done = true;
+    }
+    if (done) break;
+  }
+  return out;
+}
+
+const pick = (o: any, ...keys: string[]) => {
+  for (const k of keys) if (o?.[k] != null && o[k] !== "") return o[k];
+  return undefined;
+};
+
+async function fetchFuelFinder(): Promise<FeedResult & { configured: boolean }> {
+  if (!process.env["FUEL_FINDER_CLIENT_ID"]) return { stations: [], failed: false, configured: false };
+  try {
+    const token = await getFuelFinderToken();
+    if (!token) return { stations: [], failed: true, configured: true };
+    const [sites, prices] = await Promise.all([
+      ffFetchAll("pfs", token),
+      ffFetchAll("pfs/fuel-prices", token),
+    ]);
+    const priceById = new Map<string, number>();
+    for (const p of prices) {
+      const id = String(pick(p, "node_id", "nodeId", "id") ?? "");
+      const list = (pick(p, "fuel_prices", "prices") ?? []) as any[];
+      const e10 = Array.isArray(list)
+        ? list.find((f) => String(pick(f, "fuel_type", "fuelType") ?? "").toUpperCase() === "E10")
+        : undefined;
+      const price = Number(pick(e10, "price", "value"));
+      if (id && Number.isFinite(price)) priceById.set(id, price);
+    }
+    const stations: RawStation[] = [];
+    for (const s of sites) {
+      const id = String(pick(s, "node_id", "nodeId", "id") ?? "");
+      const price = priceById.get(id);
+      if (price == null) continue;
+      const loc = s.location ?? s;
+      const address = [pick(loc, "address_line_1", "address"), pick(loc, "address_line_2"), pick(loc, "city", "town")]
+        .filter(Boolean)
+        .join(", ");
+      stations.push({
+        brand: pick(s, "brand_name", "brand", "trading_name") ?? "Unknown",
+        address,
+        postcode: pick(loc, "postcode", "post_code") ?? "",
+        location: { latitude: pick(loc, "latitude", "lat"), longitude: pick(loc, "longitude", "lng", "lon") },
+        prices: { E10: price },
+      });
+    }
+    return { stations, failed: stations.length === 0, configured: true };
+  } catch (e) {
+    console.error("Fuel Finder fetch failed", e);
+    return { stations: [], failed: true, configured: true };
+  }
+}
+
 async function loadStations(fresh = false) {
-  const results = await Promise.all(FEEDS.map((feed) => fetchFeed(feed, fresh)));
-  const missing = FEEDS.filter((_, i) => results[i]?.failed).map((f) => f.retailer);
+  const [ff, ...results] = await Promise.all([
+    fetchFuelFinder(),
+    ...FEEDS.map((feed) => fetchFeed(feed, fresh)),
+  ]);
+  // When the official feed works it covers every retailer, so nothing is missing
+  const missing =
+    ff.configured && !ff.failed
+      ? []
+      : FEEDS.filter((_, i) => results[i]?.failed).map((f) => f.retailer);
   const stations: Omit<FuelStation, "distanceKm">[] = [];
   const seen = new Set<string>();
 
-  for (const raw of results.flatMap((r) => r.stations)) {
+  // Official data first so it wins de-duplication
+  for (const raw of [ff, ...results].flatMap((r) => r.stations)) {
     const lat = Number(raw.location?.latitude);
     const lng = Number(raw.location?.longitude);
     let price = Number(raw.prices?.["E10"]);

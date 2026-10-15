@@ -2,7 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Star, Sun, TrendingDown } from "lucide-react";
 
-import { getFavouritePrices, getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
+import { getFavouritePrices, getFuelPrices, warmPrices, type FuelStation, type FuelType } from "../lib/fuel.functions";
+
+const FUEL_OPTIONS: Array<{ id: FuelType; label: string }> = [
+  { id: "E10", label: "Unleaded" },
+  { id: "E5", label: "Premium" },
+  { id: "B7", label: "Diesel" },
+];
 
 export const Route = createFileRoute("/")({
   head: () => ({

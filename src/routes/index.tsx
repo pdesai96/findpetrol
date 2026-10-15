@@ -178,6 +178,8 @@ function Index() {
   const [sortBy, setSortBy] = useState<"price" | "distance">("price");
   const [locating, setLocating] = useState(false);
   const [dark, setDark] = useState(false);
+  const [favs, setFavs] = useState<FuelStation[]>([]);
+  const [openFav, setOpenFav] = useState<string | null>(null);
 
   // Restore saved theme, or fall back to the device preference, on first paint
   useEffect(() => {
@@ -186,7 +188,27 @@ function Index() {
     const isDark = saved ? saved === "dark" : prefersDark;
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
+    setFavs(loadFavs());
   }, []);
+
+  function toggleFav(s: FuelStation) {
+    setFavs((prev) => {
+      const id = favId(s);
+      const next = prev.some((f) => favId(f) === id)
+        ? prev.filter((f) => favId(f) !== id)
+        : [...prev, s];
+      try {
+        localStorage.setItem(FAV_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }
+
+  // Show the three cheapest saved stations
+  const topFavs = useMemo(
+    () => [...favs].sort((a, b) => a.price - b.price).slice(0, 3),
+    [favs],
+  );
 
   function toggleDark() {
     const next = !dark;

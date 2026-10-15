@@ -196,15 +196,18 @@ async function fetchFuelFinder(): Promise<FeedResult & { configured: boolean }> 
       ffFetchAll("pfs", token),
       ffFetchAll("pfs/fuel-prices", token),
     ]);
-    const priceById = new Map<string, number>();
+    const priceById = new Map<string, Record<string, number>>();
     for (const p of prices) {
       const id = String(pick(p, "node_id", "nodeId", "id") ?? "");
       const list = (pick(p, "fuel_prices", "prices") ?? []) as any[];
-      const e10 = Array.isArray(list)
-        ? list.find((f) => String(pick(f, "fuel_type", "fuelType") ?? "").toUpperCase() === "E10")
-        : undefined;
-      const price = Number(pick(e10, "price", "value"));
-      if (id && Number.isFinite(price)) priceById.set(id, price);
+      if (!id || !Array.isArray(list)) continue;
+      const rec: Record<string, number> = {};
+      for (const f of list) {
+        const code = String(pick(f, "fuel_type", "fuelType") ?? "").toUpperCase();
+        const price = Number(pick(f, "price", "value"));
+        if (FUEL_TYPES.includes(code as FuelType) && Number.isFinite(price)) rec[code] = price;
+      }
+      if (Object.keys(rec).length > 0) priceById.set(id, rec);
     }
     const stations: RawStation[] = [];
     for (const s of sites) {

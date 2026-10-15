@@ -467,7 +467,7 @@ function Index() {
               })}
             </ul>
             <p className="mt-2 text-xs text-muted-foreground">
-              Live prices, refreshed when you open the app — tap the star on any station to add or remove it.
+              Live prices, refreshed automatically every minute — tap the star on any station to add or remove it.
             </p>
 
           </div>

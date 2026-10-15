@@ -307,7 +307,7 @@ function Index() {
     if (fresh) setRefreshing(true);
     else setResult({ status: "loading" });
     try {
-      const res = await getFuelPrices({ data: { ...input, fresh, fuelType } });
+      const res = await getFuelPrices({ data: { ...input, fresh, fuelType: fuelTypeRef.current } });
       if ("error" in res && res.error) {
         setResult({ status: "error", message: res.error });
       } else if ("stations" in res && res.stations) {

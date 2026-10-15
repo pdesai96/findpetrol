@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Fuel, Loader2, MapPin, Navigation, RefreshCw, Search, TrendingDown } from "lucide-react";
+import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Sun, TrendingDown } from "lucide-react";
 
 import { getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
 
@@ -49,6 +49,23 @@ function Index() {
   const [radiusMiles, setRadiusMiles] = useState(5);
   const [sortBy, setSortBy] = useState<"price" | "distance">("price");
   const [locating, setLocating] = useState(false);
+  const [dark, setDark] = useState(false);
+
+  // Restore saved theme, or fall back to the device preference, on first paint
+  useEffect(() => {
+    const saved = localStorage.getItem("findpetrol-theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = saved ? saved === "dark" : prefersDark;
+    setDark(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
+  }, []);
+
+  function toggleDark() {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("findpetrol-theme", next ? "dark" : "light");
+  }
 
   // Start loading all retailer prices as soon as the page opens, so the first
   // search is fast; auto-search with current location if permission was granted
@@ -149,6 +166,14 @@ function Index() {
             <Fuel className="h-6 w-6 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">findpetrol</h1>
+          <button
+            type="button"
+            onClick={toggleDark}
+            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+            className="ml-auto flex h-11 w-11 touch-manipulation items-center justify-center rounded-xl border border-border bg-card text-foreground transition-colors hover:bg-accent"
+          >
+            {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
         </div>
 
         {/* Search */}

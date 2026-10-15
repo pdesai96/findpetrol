@@ -19,26 +19,39 @@ type RawStation = {
   prices?: Record<string, number | string | undefined>;
 };
 
-const FEEDS = [
-  "https://storelocator.asda.com/fuel_prices_data.json",
-  "https://www.morrisons.com/fuel-prices/fuel.json",
-  "https://jetlocal.co.uk/fuel_prices_data.json",
-  "https://fuelprices.esso.co.uk/latestdata.json",
-  "https://applegreenstores.com/fuel-prices/data.json",
-  "https://www.tesco.com/fuel_prices/fuel_prices_data.json",
-  "https://www.shell.co.uk/fuel-prices-data.html",
-  "https://fuel.motorfuelgroup.com/fuel_prices_data.json",
-  "https://www.rontec-servicestations.co.uk/fuel-prices/data/fuel_prices_data.json",
-  "https://moto-way.com/fuel-price/fuel_prices.json",
-  "https://www.sgnretail.uk/files/data/SGN_daily_fuel_prices.json",
+const FEEDS: Array<{ url: string; retailer: string }> = [
+  { url: "https://storelocator.asda.com/fuel_prices_data.json", retailer: "Asda" },
+  { url: "https://www.morrisons.com/fuel-prices/fuel.json", retailer: "Morrisons" },
+  { url: "https://jetlocal.co.uk/fuel_prices_data.json", retailer: "JET" },
+  { url: "https://fuelprices.esso.co.uk/latestdata.json", retailer: "Esso" },
+  { url: "https://applegreenstores.com/fuel-prices/data.json", retailer: "Applegreen" },
+  { url: "https://www.tesco.com/fuel_prices/fuel_prices_data.json", retailer: "Tesco" },
+  { url: "https://www.shell.co.uk/fuel-prices-data.html", retailer: "Shell" },
+  { url: "https://fuel.motorfuelgroup.com/fuel_prices_data.json", retailer: "MFG" },
+  {
+    url: "https://www.rontec-servicestations.co.uk/fuel-prices/data/fuel_prices_data.json",
+    retailer: "Rontec",
+  },
+  { url: "https://moto-way.com/fuel-price/fuel_prices.json", retailer: "Moto" },
+  { url: "https://www.sgnretail.uk/files/data/SGN_daily_fuel_prices.json", retailer: "SGN" },
   // These currently block or time out from servers; kept so they're used if they come back
-  "https://api.sainsburys.co.uk/v1/exports/latest/fuel_prices_data.json",
-  "https://www.bp.com/en_gb/united-kingdom/home/fuelprices/fuel_prices_data.json",
-  "https://fuelprices.asconagroup.co.uk/newfuel.json",
-  "https://api2.krlmedia.com/integration/live_price/krl",
+  {
+    url: "https://api.sainsburys.co.uk/v1/exports/latest/fuel_prices_data.json",
+    retailer: "Sainsbury's",
+  },
+  {
+    url: "https://www.bp.com/en_gb/united-kingdom/home/fuelprices/fuel_prices_data.json",
+    retailer: "BP",
+  },
+  { url: "https://fuelprices.asconagroup.co.uk/newfuel.json", retailer: "Ascona" },
+  { url: "https://api2.krlmedia.com/integration/live_price/krl", retailer: "Karan" },
 ];
 
-let cache: { at: number; stations: Omit<FuelStation, "distanceKm">[] } | null = null;
+let cache: {
+  at: number;
+  stations: Omit<FuelStation, "distanceKm">[];
+  missing: string[];
+} | null = null;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -57,12 +70,17 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 const deadUntil = new Map<string, number>();
 const DEAD_TTL_MS = 30 * 60 * 1000;
 
-async function fetchFeed(url: string, fresh = false): Promise<RawStation[]> {
-  const dead = deadUntil.get(url);
+type FeedResult = { stations: RawStation[]; failed: boolean };
+
+async function fetchFeed(
+  feed: { url: string; retailer: string },
+  fresh = false,
+): Promise<FeedResult> {
+  const dead = deadUntil.get(feed.url);
   // A manual refresh retries every feed, even ones that failed recently
-  if (!fresh && dead && dead > Date.now()) return [];
+  if (!fresh && dead && dead > Date.now()) return { stations: [], failed: true };
   try {
-    const res = await fetch(url, {
+    const res = await fetch(feed.url, {
       signal: AbortSignal.timeout(4000),
       headers: {
         "User-Agent":
@@ -72,36 +90,44 @@ async function fetchFeed(url: string, fresh = false): Promise<RawStation[]> {
       redirect: "follow",
     });
     if (!res.ok) {
-      deadUntil.set(url, Date.now() + DEAD_TTL_MS);
-      return [];
+      deadUntil.set(feed.url, Date.now() + DEAD_TTL_MS);
+      return { stations: [], failed: true };
     }
     const json = (await res.json()) as { stations?: RawStation[] };
-    return json.stations ?? [];
+    return { stations: json.stations ?? [], failed: false };
   } catch {
-    deadUntil.set(url, Date.now() + DEAD_TTL_MS);
-    return [];
+    deadUntil.set(feed.url, Date.now() + DEAD_TTL_MS);
+    return { stations: [], failed: true };
   }
 }
 
-let inflight: Promise<Omit<FuelStation, "distanceKm">[]> | null = null;
+let inflight: Promise<{ stations: Omit<FuelStation, "distanceKm">[]; missing: string[] }> | null =
+  null;
 
 async function getAllStations(fresh = false) {
-  if (!fresh && cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.stations;
+  if (!fresh && cache && Date.now() - cache.at < CACHE_TTL_MS) return cache;
   // Stale data: serve instantly, refresh in the background
   if (!fresh && cache) {
-    if (!inflight) inflight = loadStations().finally(() => (inflight = null));
-    return cache.stations;
+    if (!inflight)
+      inflight = loadStations().finally(() => {
+        inflight = null;
+      });
+    return cache;
   }
-  if (!inflight) inflight = loadStations(fresh).finally(() => (inflight = null));
+  if (!inflight)
+    inflight = loadStations(fresh).finally(() => {
+      inflight = null;
+    });
   return inflight;
 }
 
 async function loadStations(fresh = false) {
-  const results = await Promise.all(FEEDS.map((url) => fetchFeed(url, fresh)));
+  const results = await Promise.all(FEEDS.map((feed) => fetchFeed(feed, fresh)));
+  const missing = FEEDS.filter((_, i) => results[i]?.failed).map((f) => f.retailer);
   const stations: Omit<FuelStation, "distanceKm">[] = [];
   const seen = new Set<string>();
 
-  for (const raw of results.flat()) {
+  for (const raw of results.flatMap((r) => r.stations)) {
     const lat = Number(raw.location?.latitude);
     const lng = Number(raw.location?.longitude);
     let price = Number(raw.prices?.["E10"]);
@@ -124,8 +150,8 @@ async function loadStations(fresh = false) {
     });
   }
 
-  cache = { at: Date.now(), stations };
-  return stations;
+  cache = { at: Date.now(), stations, missing };
+  return { stations, missing };
 }
 
 async function geocodeTown(town: string): Promise<{ lat: number; lng: number; label: string } | null> {
@@ -175,7 +201,7 @@ export const getFuelPrices = createServerFn({ method: "GET" })
       return { error: "Enter a town name or use your current location." };
     }
 
-    const stations = await stationsPromise;
+    const { stations, missing } = await stationsPromise;
     const RADIUS_KM = 25 * 1.609344; // 25 miles
 
     const nearby: FuelStation[] = stations
@@ -188,5 +214,11 @@ export const getFuelPrices = createServerFn({ method: "GET" })
       return { error: "No stations with live prices found within 25 miles of that location." };
     }
 
-    return { stations: nearby, placeLabel, center: { lat, lng } };
+    return { stations: nearby, placeLabel, center: { lat, lng }, missingRetailers: missing };
   });
+
+// Called when the page opens so prices are already loading before the user searches
+export const warmPrices = createServerFn({ method: "GET" }).handler(async () => {
+  await getAllStations();
+  return { ok: true };
+});

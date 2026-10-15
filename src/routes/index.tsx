@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Fuel, Loader2, MapPin, Navigation, RefreshCw, Search, TrendingDown } from "lucide-react";
 
-import { getFuelPrices, type FuelStation } from "../lib/fuel.functions";
+import { getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,7 +30,12 @@ type Result =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "done"; stations: FuelStation[]; placeLabel: string | null };
+  | {
+      status: "done";
+      stations: FuelStation[];
+      placeLabel: string | null;
+      missingRetailers: string[];
+    };
 
 function Index() {
   const [town, setTown] = useState("");
@@ -45,8 +50,10 @@ function Index() {
   const [sortBy, setSortBy] = useState<"price" | "distance">("price");
   const [locating, setLocating] = useState(false);
 
-  // Auto-search with current location if the user has already granted permission
+  // Start loading all retailer prices as soon as the page opens, so the first
+  // search is fast; auto-search with current location if permission was granted
   useEffect(() => {
+    warmPrices().catch(() => {});
     if (!navigator.geolocation || !navigator.permissions?.query) return;
     navigator.permissions
       .query({ name: "geolocation" as PermissionName })
@@ -72,7 +79,12 @@ function Index() {
       if ("error" in res && res.error) {
         setResult({ status: "error", message: res.error });
       } else if ("stations" in res && res.stations) {
-        setResult({ status: "done", stations: res.stations, placeLabel: res.placeLabel ?? null });
+        setResult({
+          status: "done",
+          stations: res.stations,
+          placeLabel: res.placeLabel ?? null,
+          missingRetailers: res.missingRetailers ?? [],
+        });
         setUpdatedAt(new Date());
       } else {
         setResult({ status: "error", message: "Something went wrong. Please try again." });
@@ -248,6 +260,21 @@ function Index() {
                 </button>
               ))}
             </div>
+
+            {result.missingRetailers.length > 0 && (
+              <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                Couldn't load prices from {result.missingRetailers.join(", ")} right now — their
+                stations may be missing.{" "}
+                <button
+                  type="button"
+                  disabled={refreshing}
+                  className="font-semibold text-primary underline disabled:opacity-50"
+                  onClick={() => lastInput && search(lastInput, true)}
+                >
+                  Retry them
+                </button>
+              </div>
+            )}
 
             {visible.length === 0 && (
               <div className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">

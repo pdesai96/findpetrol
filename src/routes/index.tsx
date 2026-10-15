@@ -605,46 +605,13 @@ function Index() {
                         </button>
                       </div>
                     </div>
-                    {isOpen && (
-                      <div className="flex gap-2 border-t border-border px-4 py-3">
-                        {MAP_KINDS.map((kind) => {
-                          const link = stationMapLinks(s)[kind];
-                          const meta = MAP_META[kind];
-                          return (
-                            <a
-                              key={kind}
-                              href={link.web}
-                              target="_top"
-                              onClick={(e) => openMapApp(e, link, kind)}
-                              aria-label={`Open ${s.brand} in ${meta.label}`}
-                              className={
-                                meta.primary
-                                  ? "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                                  : "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
-                              }
-                            >
-                              {kind === "google" ? (
-                                <MapPin className="h-4 w-4" />
-                              ) : (
-                                <Navigation className="h-4 w-4" />
-                              )}
-                              {meta.short}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    )}
+                    {isOpen && <MapButtons station={s} />}
                   </li>
                 );
               })}
             </ul>
           </div>
         )}
-
-        <p className="mt-12 text-center text-xs text-muted-foreground">
-          Prices from UK retailer open-data feeds (Asda, Tesco, Morrisons, Shell, Esso, JET,
-          Applegreen, MFG, Rontec, Moto, SGN and more), updated throughout the day.
-        </p>
       </div>
     </div>
   );

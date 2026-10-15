@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Star, Sun, TrendingDown } from "lucide-react";
 
 import { getFavouritePrices, getFuelPrices, warmPrices, type FuelStation, type FuelType } from "../lib/fuel.functions";
@@ -307,7 +307,7 @@ function Index() {
     if (fresh) setRefreshing(true);
     else setResult({ status: "loading" });
     try {
-      const res = await getFuelPrices({ data: { ...input, fresh } });
+      const res = await getFuelPrices({ data: { ...input, fresh, fuelType } });
       if ("error" in res && res.error) {
         setResult({ status: "error", message: res.error });
       } else if ("stations" in res && res.stations) {

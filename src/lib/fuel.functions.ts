@@ -201,7 +201,7 @@ export const getFuelPrices = createServerFn({ method: "GET" })
       return { error: "Enter a town name or use your current location." };
     }
 
-    const stations = await stationsPromise;
+    const { stations, missing } = await stationsPromise;
     const RADIUS_KM = 25 * 1.609344; // 25 miles
 
     const nearby: FuelStation[] = stations

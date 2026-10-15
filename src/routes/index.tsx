@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Sun, TrendingDown } from "lucide-react";
 
 import { getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
@@ -36,6 +36,69 @@ type Result =
       placeLabel: string | null;
       missingRetailers: string[];
     };
+
+const MAP_KINDS = ["apple", "google", "waze"] as const;
+type MapKind = (typeof MAP_KINDS)[number];
+
+const MAP_META: Record<MapKind, { label: string; short: string; primary: boolean }> = {
+  apple: { label: "Apple Maps", short: "Apple Maps", primary: true },
+  google: { label: "Google Maps", short: "Google", primary: false },
+  waze: { label: "Waze", short: "Waze", primary: false },
+};
+
+function isAppleDevice() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return (
+    /iPhone|iPad|iPod/i.test(ua) ||
+    (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 0) ||
+    navigator.platform === "MacIntel"
+  );
+}
+
+// Each button carries the map app's own link plus the plain web version, which
+// stays as the fallback for when the app isn't installed.
+function stationMapLinks(s: FuelStation) {
+  const q = encodeURIComponent(`${s.brand} ${s.address}`);
+  return {
+    apple: {
+      app: `maps://maps.apple.com/?daddr=${s.lat},${s.lng}&dirflg=d&q=${q}`,
+      web: `https://maps.apple.com/?daddr=${s.lat},${s.lng}&dirflg=d&q=${q}`,
+    },
+    google: {
+      app: `comgooglemaps://?daddr=${s.lat},${s.lng}&directionsmode=driving&q=${q}`,
+      web: `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`,
+    },
+    waze: {
+      app: `waze://?ll=${s.lat},${s.lng}&navigate=yes`,
+      web: `https://www.waze.com/ul?ll=${s.lat},${s.lng}&navigate=yes`,
+    },
+  } satisfies Record<MapKind, { app: string; web: string }>;
+}
+
+// A plain https link only hands off to the app when the browser recognises it
+// as a universal link, which it won't when the page sits inside a frame. So on
+// Apple devices we call the app's own link directly and only open the website
+// if nothing took over.
+function openMapApp(
+  e: MouseEvent<HTMLAnchorElement>,
+  link: { app: string; web: string },
+  kind: MapKind,
+) {
+  if (!isAppleDevice()) return; // elsewhere the web link already opens the app
+  e.preventDefault();
+  const frame = document.createElement("iframe");
+  frame.hidden = true;
+  frame.src = link.app;
+  document.body.appendChild(frame);
+  window.setTimeout(() => frame.remove(), 2000);
+  // Apple Maps is always present, so never second-guess it with the website.
+  if (kind === "apple") return;
+  window.setTimeout(() => {
+    // Still here, still focused: no app opened, so show the route in the browser
+    if (!document.hidden && document.hasFocus()) window.location.href = link.web;
+  }, 1200);
+}
 
 function Index() {
   const [town, setTown] = useState("");
@@ -380,32 +443,31 @@ function Index() {
                     </button>
                     {isOpen && (
                       <div className="flex gap-2 border-t border-border px-4 py-3">
-                        <a
-                          href={`https://maps.apple.com/?daddr=${s.lat},${s.lng}&dirflg=d`}
-                          target="_top"
-                          aria-label={`Open ${s.brand} in Apple Maps`}
-                          className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                        >
-                          <Navigation className="h-4 w-4" />
-                          Apple Maps
-                        </a>
-                        <a
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`}
-                          target="_top"
-                          className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
-                        >
-                          <MapPin className="h-4 w-4" />
-                          Google
-                        </a>
-                        <a
-                          href={`https://waze.com/ul?ll=${s.lat},${s.lng}&navigate=yes`}
-                          target="_top"
-                          aria-label={`Open ${s.brand} in Waze`}
-                          className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
-                        >
-                          <Navigation className="h-4 w-4" />
-                          Waze
-                        </a>
+                        {MAP_KINDS.map((kind) => {
+                          const link = stationMapLinks(s)[kind];
+                          const meta = MAP_META[kind];
+                          return (
+                            <a
+                              key={kind}
+                              href={link.web}
+                              target="_top"
+                              onClick={(e) => openMapApp(e, link, kind)}
+                              aria-label={`Open ${s.brand} in ${meta.label}`}
+                              className={
+                                meta.primary
+                                  ? "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                                  : "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                              }
+                            >
+                              {kind === "google" ? (
+                                <MapPin className="h-4 w-4" />
+                              ) : (
+                                <Navigation className="h-4 w-4" />
+                              )}
+                              {meta.short}
+                            </a>
+                          );
+                        })}
                       </div>
                     )}
                   </li>

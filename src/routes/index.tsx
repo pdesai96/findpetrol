@@ -364,6 +364,11 @@ function Index() {
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {fmtMiles(s.distanceKm)} away
+                          {s.driveMins != null && (
+                            <span className="font-semibold text-foreground">
+                              {" "}· ~{s.driveMins} min drive
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">

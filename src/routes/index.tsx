@@ -182,6 +182,7 @@ function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const [radiusMiles, setRadiusMiles] = useState(5);
   const [sortBy, setSortBy] = useState<"price" | "distance">("price");
+  const [fuelType, setFuelType] = useState<FuelType>("E10");
   const [locating, setLocating] = useState(false);
   const [dark, setDark] = useState(true);
   const [favs, setFavs] = useState<FuelStation[]>([]);

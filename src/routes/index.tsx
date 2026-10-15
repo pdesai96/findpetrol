@@ -380,32 +380,31 @@ function Index() {
                     </button>
                     {isOpen && (
                       <div className="flex gap-2 border-t border-border px-4 py-3">
-                        <a
-                          href={`https://maps.apple.com/?daddr=${s.lat},${s.lng}&dirflg=d`}
-                          target="_top"
-                          aria-label={`Open ${s.brand} in Apple Maps`}
-                          className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                        >
-                          <Navigation className="h-4 w-4" />
-                          Apple Maps
-                        </a>
-                        <a
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`}
-                          target="_top"
-                          className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
-                        >
-                          <MapPin className="h-4 w-4" />
-                          Google
-                        </a>
-                        <a
-                          href={`https://waze.com/ul?ll=${s.lat},${s.lng}&navigate=yes`}
-                          target="_top"
-                          aria-label={`Open ${s.brand} in Waze`}
-                          className="inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
-                        >
-                          <Navigation className="h-4 w-4" />
-                          Waze
-                        </a>
+                        {MAP_KINDS.map((kind) => {
+                          const link = stationMapLinks(s)[kind];
+                          const meta = MAP_META[kind];
+                          return (
+                            <a
+                              key={kind}
+                              href={link.web}
+                              target="_top"
+                              onClick={(e) => openMapApp(e, link)}
+                              aria-label={`Open ${s.brand} in ${meta.label}`}
+                              className={
+                                meta.primary
+                                  ? "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                                  : "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                              }
+                            >
+                              {kind === "google" ? (
+                                <MapPin className="h-4 w-4" />
+                              ) : (
+                                <Navigation className="h-4 w-4" />
+                              )}
+                              {meta.short}
+                            </a>
+                          );
+                        })}
                       </div>
                     )}
                   </li>

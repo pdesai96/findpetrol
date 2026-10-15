@@ -127,7 +127,7 @@ async function loadStations(fresh = false) {
   const stations: Omit<FuelStation, "distanceKm">[] = [];
   const seen = new Set<string>();
 
-  for (const raw of results.flat()) {
+  for (const raw of results.flatMap((r) => r.stations)) {
     const lat = Number(raw.location?.latitude);
     const lng = Number(raw.location?.longitude);
     let price = Number(raw.prices?.["E10"]);

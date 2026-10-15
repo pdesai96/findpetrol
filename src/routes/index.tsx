@@ -536,10 +536,17 @@ function Index() {
                       isCheapest ? "border-primary/50 bg-primary/5" : "border-border bg-card"
                     }`}
                   >
-                    <button
-                      type="button"
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setOpenStation(isOpen ? null : key)}
-                      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent/50"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setOpenStation(isOpen ? null : key);
+                        }
+                      }}
+                      className="flex w-full cursor-pointer items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent/50"
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -568,13 +575,36 @@ function Index() {
                           )}
                         </p>
                       </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-2xl font-bold tabular-nums text-foreground">
-                          {s.price.toFixed(1)}
-                          <span className="text-sm font-medium text-muted-foreground">p/L</span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className="text-right">
+                          <div className="text-2xl font-bold tabular-nums text-foreground">
+                            {s.price.toFixed(1)}
+                            <span className="text-sm font-medium text-muted-foreground">p/L</span>
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          aria-label={
+                            favs.some((f) => favId(f) === favId(s))
+                              ? `Remove ${s.brand} from favourites`
+                              : `Save ${s.brand} to favourites`
+                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFav(s);
+                          }}
+                          className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                        >
+                          <Star
+                            className={`h-5 w-5 ${
+                              favs.some((f) => favId(f) === favId(s))
+                                ? "fill-primary text-primary"
+                                : ""
+                            }`}
+                          />
+                        </button>
                       </div>
-                    </button>
+                    </div>
                     {isOpen && (
                       <div className="flex gap-2 border-t border-border px-4 py-3">
                         {MAP_KINDS.map((kind) => {

@@ -449,6 +449,7 @@ export const getFuelPrices = createServerFn({ method: "GET" })
 
     // Live traffic-aware drive times for the closest 25 (the most anyone browses)
     await addDriveTimes(nearby.slice(0, 25), lat!, lng!);
+    await addOpenStatus(nearby.slice(0, 15));
 
     return { stations: nearby, placeLabel, center: { lat, lng }, missingRetailers: missing };
   });

@@ -437,6 +437,31 @@ function Index() {
           Use my current location
         </button>
 
+        {/* Fuel type */}
+        <div className="mt-4 grid grid-cols-3 gap-1.5" role="group" aria-label="Fuel type">
+          {FUEL_OPTIONS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              aria-pressed={fuelType === f.id}
+              onClick={() => {
+                setFuelType(f.id);
+                fuelTypeRef.current = f.id;
+                // Re-run the current search for the newly picked fuel
+                if (lastInput) search(lastInput);
+                refreshFavPrices();
+              }}
+              className={`h-11 touch-manipulation rounded-xl text-sm font-semibold transition-colors ${
+                fuelType === f.id
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-card text-foreground hover:bg-accent"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         {/* Favourites — the three cheapest stations you've starred */}
         {topFavs.length > 0 && (
           <div className="mt-8">

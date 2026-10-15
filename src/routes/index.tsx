@@ -217,6 +217,19 @@ function Index() {
     localStorage.setItem("findpetrol-theme", next ? "dark" : "light");
   }
 
+  // Tapping the logo always takes you back to the start: no results, just your
+  // favourites and the search box.
+  function goHome() {
+    setResult({ status: "idle" });
+    setLastInput(null);
+    setTown("");
+    setOpenStation(null);
+    setOpenFav(null);
+    setRefreshing(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+
   // Start loading all retailer prices as soon as the page opens, so the first
   // search is fast; auto-search with current location if permission was granted
   useEffect(() => {
@@ -312,10 +325,20 @@ function Index() {
       <div className="mx-auto max-w-2xl px-4 pb-16 pt-12 sm:pt-20">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
-            <Fuel className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">findpetrol</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            <button
+              type="button"
+              onClick={goHome}
+              aria-label="findpetrol — go to homepage"
+              className="flex items-center gap-3 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
+                <Fuel className="h-6 w-6 text-primary-foreground" />
+              </span>
+              <span>findpetrol</span>
+            </button>
+          </h1>
+
           <button
             type="button"
             onClick={toggleDark}

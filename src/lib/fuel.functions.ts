@@ -250,11 +250,17 @@ async function loadStations(fresh = false) {
   for (const raw of [ff, ...results].flatMap((r) => r.stations)) {
     const lat = Number(raw.location?.latitude);
     const lng = Number(raw.location?.longitude);
-    let price = Number(raw.prices?.["E10"]);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-    if (!Number.isFinite(price) || price <= 0) continue;
-    if (price < 10) price *= 100; // some feeds report pounds
-    if (price < 80 || price > 300) continue; // discard obviously bad data
+    // Keep every known fuel price, normalised to pence per litre
+    const prices: Record<string, number> = {};
+    for (const code of FUEL_TYPES) {
+      let p = Number(raw.prices?.[code]);
+      if (!Number.isFinite(p) || p <= 0) continue;
+      if (p < 10) p *= 100; // some feeds report pounds
+      if (p < 80 || p > 300) continue; // discard obviously bad data
+      prices[code] = p;
+    }
+    if (Object.keys(prices).length === 0) continue;
     // UK mainland + Northern Ireland bounds (excludes Gibraltar etc.)
     if (lat < 49.8 || lat > 60.9 || lng < -8.7 || lng > 1.9) continue;
     const dedupeKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
@@ -266,7 +272,8 @@ async function loadStations(fresh = false) {
       postcode: raw.postcode ?? "",
       lat,
       lng,
-      price,
+      price: prices["E10"] ?? Object.values(prices)[0]!,
+      prices,
     });
   }
 

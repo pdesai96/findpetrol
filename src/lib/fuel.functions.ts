@@ -373,7 +373,7 @@ function isOpenNow(openingHours: any): boolean | undefined {
 async function addOpenStatus(stations: Array<Pick<FuelStation, "brand" | "lat" | "lng"> & { openNow?: boolean | undefined }>) {
   const key = process.env["TOMTOM_API_KEY"];
   if (!key || stations.length === 0) return;
-  const fetchOne = async (s: FuelStation): Promise<void> => {
+  const fetchOne = async (s: Pick<FuelStation, "brand" | "lat" | "lng"> & { openNow?: boolean | undefined }): Promise<void> => {
     const cacheKey = `${s.lat.toFixed(4)},${s.lng.toFixed(4)}`;
     const cached = openCache.get(cacheKey);
     if (cached && Date.now() - cached.at < OPEN_CACHE_TTL_MS) {

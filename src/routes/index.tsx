@@ -362,6 +362,53 @@ function Index() {
           Use my current location
         </button>
 
+        {/* Favourites — the three cheapest stations you've starred */}
+        {topFavs.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2">
+              <Star className="h-4 w-4 fill-primary text-primary" />
+              <h2 className="text-sm font-bold text-foreground">Your favourites</h2>
+            </div>
+            <ul className="mt-3 space-y-3">
+              {topFavs.map((s) => {
+                const id = favId(s);
+                const isOpen = openFav === id;
+                return (
+                  <li
+                    key={id}
+                    className="overflow-hidden rounded-xl border border-border bg-card"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenFav(isOpen ? null : id)}
+                      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent/50"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-semibold text-foreground">{s.brand}</span>
+                        <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                          {s.address}
+                          {s.postcode ? `, ${s.postcode}` : ""}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-2xl font-bold tabular-nums text-foreground">
+                          {s.price.toFixed(1)}
+                          <span className="text-sm font-medium text-muted-foreground">p/L</span>
+                        </div>
+                      </div>
+                    </button>
+                    {isOpen && <MapButtons station={s} />}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Prices from when you saved them — tap the star on any station below to add or remove
+              it.
+            </p>
+          </div>
+        )}
+
         {/* Status */}
         {result.status === "loading" && (
           <div className="mt-10 flex items-center justify-center gap-2 text-muted-foreground">

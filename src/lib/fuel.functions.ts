@@ -384,3 +384,33 @@ export const warmPrices = createServerFn({ method: "GET" }).handler(async () => 
   await getAllStations();
   return { ok: true };
 });
+
+// Latest prices for the user's saved (favourite) stations, matched by position
+const favsSchema = z.object({
+  stations: z
+    .array(
+      z.object({
+        brand: z.string(),
+        postcode: z.string(),
+        lat: z.number(),
+        lng: z.number(),
+      }),
+    )
+    .max(50),
+});
+
+export const getFavouritePrices = createServerFn({ method: "GET" })
+  .inputValidator((data) => favsSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { stations } = await getAllStations();
+    const updates: Array<{ lat: number; lng: number; price: number }> = [];
+    for (const fav of data.stations) {
+      let best: { price: number; d: number } | null = null;
+      for (const s of stations) {
+        const d = haversineKm(fav.lat, fav.lng, s.lat, s.lng);
+        if (d < 0.15 && (!best || d < best.d)) best = { price: s.price, d };
+      }
+      if (best) updates.push({ lat: fav.lat, lng: fav.lng, price: best.price });
+    }
+    return { updates };
+  });

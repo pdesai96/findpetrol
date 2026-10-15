@@ -220,7 +220,7 @@ function Index() {
             lat,
             lng,
           })),
-          fuelType,
+          fuelType: fuelTypeRef.current,
         },
       });
       if (!("updates" in res) || !res.updates) return;

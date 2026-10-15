@@ -294,27 +294,34 @@ async function addDriveTimes(stations: FuelStation[], lat: number, lng: number) 
   const times = cached && Date.now() - cached.at < DRIVE_CACHE_TTL_MS ? cached.times : new Map<string, number>();
 
   const missing = stations.filter((s) => !times.has(`${s.lat.toFixed(4)},${s.lng.toFixed(4)}`));
-  await Promise.all(
-    missing.map(async (s) => {
-      try {
-        const res = await fetch(
-          `https://api.tomtom.com/routing/1/calculateRoute/${lat},${lng}:${s.lat},${s.lng}/json?key=${key}&traffic=true&travelMode=car&routeType=fastest`,
-          { signal: AbortSignal.timeout(4000) },
-        );
-        if (!res.ok) {
-          console.error("TomTom route failed", res.status);
-          return;
-        }
-        const json = (await res.json()) as any;
-        const secs = json?.routes?.[0]?.summary?.travelTimeInSeconds;
-        if (Number.isFinite(secs)) {
-          times.set(`${s.lat.toFixed(4)},${s.lng.toFixed(4)}`, Math.max(1, Math.round(secs / 60)));
-        }
-      } catch {
-        // no drive time for this one; the card just shows distance
+  // Small batches with one retry: TomTom's free tier rate-limits bursts
+  const fetchOne = async (s: FuelStation, attempt = 0): Promise<void> => {
+    try {
+      const res = await fetch(
+        `https://api.tomtom.com/routing/1/calculateRoute/${lat},${lng}:${s.lat},${s.lng}/json?key=${key}&traffic=true&travelMode=car&routeType=fastest`,
+        { signal: AbortSignal.timeout(4000) },
+      );
+      if (res.status === 429 && attempt < 1) {
+        await new Promise((r) => setTimeout(r, 800));
+        return fetchOne(s, attempt + 1);
       }
-    }),
-  );
+      if (!res.ok) {
+        console.error("TomTom route failed", res.status);
+        return;
+      }
+      const json = (await res.json()) as any;
+      const secs = json?.routes?.[0]?.summary?.travelTimeInSeconds;
+      if (Number.isFinite(secs)) {
+        times.set(`${s.lat.toFixed(4)},${s.lng.toFixed(4)}`, Math.max(1, Math.round(secs / 60)));
+      }
+    } catch {
+      // no drive time for this one; the card just shows distance
+    }
+  };
+  const BATCH = 5;
+  for (let i = 0; i < missing.length; i += BATCH) {
+    await Promise.all(missing.slice(i, i + BATCH).map((s) => fetchOne(s)));
+  }
   driveCache.set(originKey, { at: Date.now(), times });
   for (const s of stations) {
     const t = times.get(`${s.lat.toFixed(4)},${s.lng.toFixed(4)}`);

@@ -451,7 +451,7 @@ function Index() {
                               key={kind}
                               href={link.web}
                               target="_top"
-                              onClick={(e) => openMapApp(e, link)}
+                              onClick={(e) => openMapApp(e, link, kind)}
                               aria-label={`Open ${s.brand} in ${meta.label}`}
                               className={
                                 meta.primary

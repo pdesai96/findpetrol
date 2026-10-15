@@ -423,6 +423,7 @@ const inputSchema = z.object({
   lat: z.number().optional(),
   lng: z.number().optional(),
   fresh: z.boolean().optional(),
+  fuelType: z.enum(FUEL_TYPES).optional(),
 });
 
 export const getFuelPrices = createServerFn({ method: "GET" })

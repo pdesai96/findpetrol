@@ -480,7 +480,7 @@ export const getFavouritePrices = createServerFn({ method: "GET" })
     const { stations } = await getAllStations();
     const matched: Array<{ lat: number; lng: number; station: Omit<FuelStation, "distanceKm"> }> = [];
     for (const fav of data.stations) {
-      let best: { station: FuelStation; d: number } | null = null;
+      let best: { station: Omit<FuelStation, "distanceKm">; d: number } | null = null;
       for (const s of stations) {
         const d = haversineKm(fav.lat, fav.lng, s.lat, s.lng);
         if (d < 0.15 && (!best || d < best.d)) best = { station: s, d };

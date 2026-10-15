@@ -426,9 +426,9 @@ function Index() {
               })}
             </ul>
             <p className="mt-2 text-xs text-muted-foreground">
-              Prices from when you saved them — tap the star on any station below to add or remove
-              it.
+              Prices from when you saved them — tap the star on any station to add or remove it.
             </p>
+
           </div>
         )}
 

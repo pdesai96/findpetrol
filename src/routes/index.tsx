@@ -87,17 +87,29 @@ function openMapApp(
 ) {
   if (!isAppleDevice()) return; // elsewhere the web link already opens the app
   e.preventDefault();
-  const frame = document.createElement("iframe");
-  frame.hidden = true;
-  frame.src = link.app;
-  document.body.appendChild(frame);
-  window.setTimeout(() => frame.remove(), 2000);
-  // Apple Maps is always present, so never second-guess it with the website.
-  if (kind === "apple") return;
-  window.setTimeout(() => {
-    // Still here, still focused: no app opened, so show the route in the browser
-    if (!document.hidden && document.hasFocus()) window.location.href = link.web;
-  }, 1200);
+  const go = (url: string) => {
+    try {
+      (window.top ?? window).location.href = url;
+    } catch {
+      window.location.href = url;
+    }
+  };
+  // Apple Maps: Safari hands maps.apple.com straight to the Maps app on a direct tap.
+  if (kind === "apple") {
+    go(link.web);
+    return;
+  }
+  // Google/Waze: open the app directly from the tap (Safari blocks hidden-frame launches).
+  go(link.app);
+  const start = Date.now();
+  const timer = window.setTimeout(() => {
+    if (!document.hidden && Date.now() - start < 3000) go(link.web);
+  }, 2500);
+  const cancel = () => {
+    if (document.hidden) window.clearTimeout(timer);
+  };
+  document.addEventListener("visibilitychange", cancel, { once: true });
+  window.addEventListener("pagehide", () => window.clearTimeout(timer), { once: true });
 }
 
 function Index() {

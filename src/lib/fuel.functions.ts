@@ -70,12 +70,17 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 const deadUntil = new Map<string, number>();
 const DEAD_TTL_MS = 30 * 60 * 1000;
 
-async function fetchFeed(url: string, fresh = false): Promise<RawStation[]> {
-  const dead = deadUntil.get(url);
+type FeedResult = { stations: RawStation[]; failed: boolean };
+
+async function fetchFeed(
+  feed: { url: string; retailer: string },
+  fresh = false,
+): Promise<FeedResult> {
+  const dead = deadUntil.get(feed.url);
   // A manual refresh retries every feed, even ones that failed recently
-  if (!fresh && dead && dead > Date.now()) return [];
+  if (!fresh && dead && dead > Date.now()) return { stations: [], failed: true };
   try {
-    const res = await fetch(url, {
+    const res = await fetch(feed.url, {
       signal: AbortSignal.timeout(4000),
       headers: {
         "User-Agent":
@@ -85,32 +90,40 @@ async function fetchFeed(url: string, fresh = false): Promise<RawStation[]> {
       redirect: "follow",
     });
     if (!res.ok) {
-      deadUntil.set(url, Date.now() + DEAD_TTL_MS);
-      return [];
+      deadUntil.set(feed.url, Date.now() + DEAD_TTL_MS);
+      return { stations: [], failed: true };
     }
     const json = (await res.json()) as { stations?: RawStation[] };
-    return json.stations ?? [];
+    return { stations: json.stations ?? [], failed: false };
   } catch {
-    deadUntil.set(url, Date.now() + DEAD_TTL_MS);
-    return [];
+    deadUntil.set(feed.url, Date.now() + DEAD_TTL_MS);
+    return { stations: [], failed: true };
   }
 }
 
-let inflight: Promise<Omit<FuelStation, "distanceKm">[]> | null = null;
+let inflight: Promise<{ stations: Omit<FuelStation, "distanceKm">[]; missing: string[] }> | null =
+  null;
 
 async function getAllStations(fresh = false) {
-  if (!fresh && cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.stations;
+  if (!fresh && cache && Date.now() - cache.at < CACHE_TTL_MS) return cache;
   // Stale data: serve instantly, refresh in the background
   if (!fresh && cache) {
-    if (!inflight) inflight = loadStations().finally(() => (inflight = null));
-    return cache.stations;
+    if (!inflight)
+      inflight = loadStations().finally(() => {
+        inflight = null;
+      });
+    return cache;
   }
-  if (!inflight) inflight = loadStations(fresh).finally(() => (inflight = null));
+  if (!inflight)
+    inflight = loadStations(fresh).finally(() => {
+      inflight = null;
+    });
   return inflight;
 }
 
 async function loadStations(fresh = false) {
-  const results = await Promise.all(FEEDS.map((url) => fetchFeed(url, fresh)));
+  const results = await Promise.all(FEEDS.map((feed) => fetchFeed(feed, fresh)));
+  const missing = FEEDS.filter((_, i) => results[i].failed).map((f) => f.retailer);
   const stations: Omit<FuelStation, "distanceKm">[] = [];
   const seen = new Set<string>();
 

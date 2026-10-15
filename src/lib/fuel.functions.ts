@@ -363,6 +363,11 @@ export const getFuelPrices = createServerFn({ method: "GET" })
       return { error: "No stations with live prices found within 25 miles of that location." };
     }
 
+    // Live traffic-aware drive times for the closest 25 (the most anyone browses)
+    await addDriveTimes(nearby.slice(0, 25), lat!, lng!);
+      return { error: "No stations with live prices found within 25 miles of that location." };
+    }
+
     return { stations: nearby, placeLabel, center: { lat, lng }, missingRetailers: missing };
   });
 

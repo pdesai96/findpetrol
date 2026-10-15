@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
-import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Sun, TrendingDown } from "lucide-react";
+import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Star, Sun, TrendingDown } from "lucide-react";
 
 import { getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
 

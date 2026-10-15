@@ -334,7 +334,7 @@ async function addDriveTimes(stations: FuelStation[], lat: number, lng: number) 
       // no drive time for this one; the card just shows distance
     }
   };
-  const BATCH = 5;
+  const BATCH = 10;
   for (let i = 0; i < missing.length; i += BATCH) {
     await Promise.all(missing.slice(i, i + BATCH).map((s) => fetchOne(s)));
   }
@@ -468,8 +468,12 @@ export const getFuelPrices = createServerFn({ method: "GET" })
     }
 
     // Live traffic-aware drive times for the closest 25 (the most anyone browses)
-    await addDriveTimes(nearby.slice(0, 25), lat!, lng!);
-    await addOpenStatus(nearby.slice(0, 15));
+    // Run both lookups side by side, capped so a slow TomTom never stalls the search
+    const cap = new Promise((r) => setTimeout(r, 3500));
+    await Promise.race([
+      Promise.all([addDriveTimes(nearby.slice(0, 25), lat!, lng!), addOpenStatus(nearby.slice(0, 15))]),
+      cap,
+    ]);
 
     return { stations: nearby, placeLabel, center: { lat, lng }, missingRetailers: missing };
   });

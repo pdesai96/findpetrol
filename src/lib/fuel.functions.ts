@@ -123,7 +123,7 @@ async function getAllStations(fresh = false) {
 
 async function loadStations(fresh = false) {
   const results = await Promise.all(FEEDS.map((feed) => fetchFeed(feed, fresh)));
-  const missing = FEEDS.filter((_, i) => results[i].failed).map((f) => f.retailer);
+  const missing = FEEDS.filter((_, i) => results[i]?.failed).map((f) => f.retailer);
   const stations: Omit<FuelStation, "distanceKm">[] = [];
   const seen = new Set<string>();
 

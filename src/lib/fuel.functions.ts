@@ -492,12 +492,14 @@ const favsSchema = z.object({
       }),
     )
     .max(50),
+  fuelType: z.enum(FUEL_TYPES).optional(),
 });
 
 export const getFavouritePrices = createServerFn({ method: "GET" })
   .inputValidator((data) => favsSchema.parse(data))
   .handler(async ({ data }) => {
     const { stations } = await getAllStations();
+    const fuelType: FuelType = data.fuelType ?? "E10";
     const matched: Array<{ lat: number; lng: number; station: Omit<FuelStation, "distanceKm"> }> = [];
     for (const fav of data.stations) {
       let best: { station: Omit<FuelStation, "distanceKm">; d: number } | null = null;
@@ -512,7 +514,7 @@ export const getFavouritePrices = createServerFn({ method: "GET" })
     const updates = matched.map(({ lat, lng, station }) => ({
       lat,
       lng,
-      price: station.price,
+      price: station.prices?.[fuelType] ?? station.price,
       ...(station.openNow != null ? { openNow: station.openNow } : {}),
     }));
     return { updates };

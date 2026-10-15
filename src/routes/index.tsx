@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
-import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Sun, TrendingDown } from "lucide-react";
+import { Fuel, Loader2, MapPin, Moon, Navigation, RefreshCw, Search, Star, Sun, TrendingDown } from "lucide-react";
 
 import { getFuelPrices, warmPrices, type FuelStation } from "../lib/fuel.functions";
 
@@ -112,6 +112,59 @@ function openMapApp(
   window.addEventListener("pagehide", () => window.clearTimeout(timer), { once: true });
 }
 
+// Favourites are saved on the device so they survive between visits. We keep a
+// snapshot of the station (brand, address, price, position) so they can be
+// shown even before a search has run.
+const FAV_KEY = "findpetrol-favs";
+
+function favId(s: FuelStation) {
+  return `${s.brand}|${s.postcode ?? ""}|${s.lat.toFixed(4)},${s.lng.toFixed(4)}`;
+}
+
+function loadFavs(): FuelStation[] {
+  try {
+    const raw = localStorage.getItem(FAV_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// The three map buttons shared by result cards and favourite cards.
+function MapButtons({ station }: { station: FuelStation }) {
+  return (
+    <div className="flex gap-2 border-t border-border px-4 py-3">
+      {MAP_KINDS.map((kind) => {
+        const link = stationMapLinks(station)[kind];
+        const meta = MAP_META[kind];
+        return (
+          <a
+            key={kind}
+            href={link.web}
+            target="_top"
+            onClick={(e) => openMapApp(e, link, kind)}
+            aria-label={`Open ${station.brand} in ${meta.label}`}
+            className={
+              meta.primary
+                ? "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                : "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+            }
+          >
+            {kind === "google" ? (
+              <MapPin className="h-4 w-4" />
+            ) : (
+              <Navigation className="h-4 w-4" />
+            )}
+            {meta.short}
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 function Index() {
   const [town, setTown] = useState("");
   const [result, setResult] = useState<Result>({ status: "idle" });
@@ -125,6 +178,8 @@ function Index() {
   const [sortBy, setSortBy] = useState<"price" | "distance">("price");
   const [locating, setLocating] = useState(false);
   const [dark, setDark] = useState(false);
+  const [favs, setFavs] = useState<FuelStation[]>([]);
+  const [openFav, setOpenFav] = useState<string | null>(null);
 
   // Restore saved theme, or fall back to the device preference, on first paint
   useEffect(() => {
@@ -133,7 +188,27 @@ function Index() {
     const isDark = saved ? saved === "dark" : prefersDark;
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
+    setFavs(loadFavs());
   }, []);
+
+  function toggleFav(s: FuelStation) {
+    setFavs((prev) => {
+      const id = favId(s);
+      const next = prev.some((f) => favId(f) === id)
+        ? prev.filter((f) => favId(f) !== id)
+        : [...prev, s];
+      try {
+        localStorage.setItem(FAV_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }
+
+  // Show the three cheapest saved stations
+  const topFavs = useMemo(
+    () => [...favs].sort((a, b) => a.price - b.price).slice(0, 3),
+    [favs],
+  );
 
   function toggleDark() {
     const next = !dark;
@@ -287,6 +362,53 @@ function Index() {
           Use my current location
         </button>
 
+        {/* Favourites — the three cheapest stations you've starred */}
+        {topFavs.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2">
+              <Star className="h-4 w-4 fill-primary text-primary" />
+              <h2 className="text-sm font-bold text-foreground">Your favourites</h2>
+            </div>
+            <ul className="mt-3 space-y-3">
+              {topFavs.map((s) => {
+                const id = favId(s);
+                const isOpen = openFav === id;
+                return (
+                  <li
+                    key={id}
+                    className="overflow-hidden rounded-xl border border-border bg-card"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenFav(isOpen ? null : id)}
+                      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent/50"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-semibold text-foreground">{s.brand}</span>
+                        <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                          {s.address}
+                          {s.postcode ? `, ${s.postcode}` : ""}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-2xl font-bold tabular-nums text-foreground">
+                          {s.price.toFixed(1)}
+                          <span className="text-sm font-medium text-muted-foreground">p/L</span>
+                        </div>
+                      </div>
+                    </button>
+                    {isOpen && <MapButtons station={s} />}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Prices from when you saved them — tap the star on any station below to add or remove
+              it.
+            </p>
+          </div>
+        )}
+
         {/* Status */}
         {result.status === "loading" && (
           <div className="mt-10 flex items-center justify-center gap-2 text-muted-foreground">
@@ -414,10 +536,17 @@ function Index() {
                       isCheapest ? "border-primary/50 bg-primary/5" : "border-border bg-card"
                     }`}
                   >
-                    <button
-                      type="button"
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setOpenStation(isOpen ? null : key)}
-                      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent/50"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setOpenStation(isOpen ? null : key);
+                        }
+                      }}
+                      className="flex w-full cursor-pointer items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent/50"
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -446,53 +575,43 @@ function Index() {
                           )}
                         </p>
                       </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-2xl font-bold tabular-nums text-foreground">
-                          {s.price.toFixed(1)}
-                          <span className="text-sm font-medium text-muted-foreground">p/L</span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className="text-right">
+                          <div className="text-2xl font-bold tabular-nums text-foreground">
+                            {s.price.toFixed(1)}
+                            <span className="text-sm font-medium text-muted-foreground">p/L</span>
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          aria-label={
+                            favs.some((f) => favId(f) === favId(s))
+                              ? `Remove ${s.brand} from favourites`
+                              : `Save ${s.brand} to favourites`
+                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFav(s);
+                          }}
+                          className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                        >
+                          <Star
+                            className={`h-5 w-5 ${
+                              favs.some((f) => favId(f) === favId(s))
+                                ? "fill-primary text-primary"
+                                : ""
+                            }`}
+                          />
+                        </button>
                       </div>
-                    </button>
-                    {isOpen && (
-                      <div className="flex gap-2 border-t border-border px-4 py-3">
-                        {MAP_KINDS.map((kind) => {
-                          const link = stationMapLinks(s)[kind];
-                          const meta = MAP_META[kind];
-                          return (
-                            <a
-                              key={kind}
-                              href={link.web}
-                              target="_top"
-                              onClick={(e) => openMapApp(e, link, kind)}
-                              aria-label={`Open ${s.brand} in ${meta.label}`}
-                              className={
-                                meta.primary
-                                  ? "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                                  : "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
-                              }
-                            >
-                              {kind === "google" ? (
-                                <MapPin className="h-4 w-4" />
-                              ) : (
-                                <Navigation className="h-4 w-4" />
-                              )}
-                              {meta.short}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    )}
+                    </div>
+                    {isOpen && <MapButtons station={s} />}
                   </li>
                 );
               })}
             </ul>
           </div>
         )}
-
-        <p className="mt-12 text-center text-xs text-muted-foreground">
-          Prices from UK retailer open-data feeds (Asda, Tesco, Morrisons, Shell, Esso, JET,
-          Applegreen, MFG, Rontec, Moto, SGN and more), updated throughout the day.
-        </p>
       </div>
     </div>
   );

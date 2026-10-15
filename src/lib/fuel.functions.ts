@@ -57,9 +57,10 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 const deadUntil = new Map<string, number>();
 const DEAD_TTL_MS = 30 * 60 * 1000;
 
-async function fetchFeed(url: string): Promise<RawStation[]> {
+async function fetchFeed(url: string, fresh = false): Promise<RawStation[]> {
   const dead = deadUntil.get(url);
-  if (dead && dead > Date.now()) return [];
+  // A manual refresh retries every feed, even ones that failed recently
+  if (!fresh && dead && dead > Date.now()) return [];
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(4000),
@@ -91,12 +92,12 @@ async function getAllStations(fresh = false) {
     if (!inflight) inflight = loadStations().finally(() => (inflight = null));
     return cache.stations;
   }
-  if (!inflight) inflight = loadStations().finally(() => (inflight = null));
+  if (!inflight) inflight = loadStations(fresh).finally(() => (inflight = null));
   return inflight;
 }
 
-async function loadStations() {
-  const results = await Promise.all(FEEDS.map(fetchFeed));
+async function loadStations(fresh = false) {
+  const results = await Promise.all(FEEDS.map((url) => fetchFeed(url, fresh)));
   const stations: Omit<FuelStation, "distanceKm">[] = [];
   const seen = new Set<string>();
 

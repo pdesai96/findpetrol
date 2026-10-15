@@ -9,6 +9,7 @@ export type FuelStation = {
   lng: number;
   price: number; // pence per litre, E10 petrol
   distanceKm: number;
+  driveMins?: number; // live traffic-aware drive time, when available
 };
 
 type RawStation = {

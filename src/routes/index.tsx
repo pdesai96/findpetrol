@@ -218,6 +218,7 @@ function Index() {
             lat,
             lng,
           })),
+          fuelType,
         },
       });
       if (!("updates" in res) || !res.updates) return;

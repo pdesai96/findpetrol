@@ -10,6 +10,7 @@ export type FuelStation = {
   price: number; // pence per litre, E10 petrol
   distanceKm: number;
   driveMins?: number; // live traffic-aware drive time, when available
+  openNow?: boolean; // from TomTom's place directory, when known
 };
 
 type RawStation = {
@@ -329,6 +330,79 @@ async function addDriveTimes(stations: FuelStation[], lat: number, lng: number) 
   }
 }
 
+// ---- TomTom open/closed status (from its place directory) ----
+const openCache = new Map<string, { at: number; open: boolean }>();
+const OPEN_CACHE_TTL_MS = 30 * 60 * 1000;
+
+function londonNow(): { date: string; minutes: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
+  return {
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    minutes: Number(get("hour")) * 60 + Number(get("minute")),
+  };
+}
+
+function isOpenNow(openingHours: any): boolean | undefined {
+  const ranges = openingHours?.timeRanges;
+  if (!Array.isArray(ranges) || ranges.length === 0) return undefined;
+  const { date, minutes } = londonNow();
+  for (const r of ranges) {
+    const st = r?.startTime;
+    const et = r?.endTime;
+    if (!st?.date || !et?.date) continue;
+    const startM = (st.hour ?? 0) * 60 + (st.minute ?? 0);
+    const endM = (et.hour ?? 0) * 60 + (et.minute ?? 0);
+    if (st.date === date && et.date === date && minutes >= startM && minutes < endM) return true;
+    // Overnight range that started yesterday and ends today
+    if (et.date === date && st.date < date && minutes < endM) return true;
+    // Overnight range starting today
+    if (st.date === date && et.date > date && minutes >= startM) return true;
+  }
+  return false;
+}
+
+async function addOpenStatus(stations: FuelStation[]) {
+  const key = process.env["TOMTOM_API_KEY"];
+  if (!key || stations.length === 0) return;
+  const fetchOne = async (s: FuelStation): Promise<void> => {
+    const cacheKey = `${s.lat.toFixed(4)},${s.lng.toFixed(4)}`;
+    const cached = openCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < OPEN_CACHE_TTL_MS) {
+      s.openNow = cached.open;
+      return;
+    }
+    try {
+      const res = await fetch(
+        `https://api.tomtom.com/search/2/poiSearch/${encodeURIComponent(s.brand)}.json?key=${key}&lat=${s.lat}&lon=${s.lng}&radius=150&categorySet=7311&limit=1&openingHours=nextSevenDays`,
+        { signal: AbortSignal.timeout(4000) },
+      );
+      if (!res.ok) return;
+      const json = (await res.json()) as any;
+      const poi = json?.results?.[0]?.poi;
+      const open = isOpenNow(poi?.openingHours);
+      if (open != null) {
+        openCache.set(cacheKey, { at: Date.now(), open });
+        s.openNow = open;
+      }
+    } catch {
+      // unknown hours; the card just shows no badge
+    }
+  };
+  const BATCH = 5;
+  for (let i = 0; i < stations.length; i += BATCH) {
+    await Promise.all(stations.slice(i, i + BATCH).map((s) => fetchOne(s)));
+  }
+}
+
 const inputSchema = z.object({
   town: z.string().optional(),
   lat: z.number().optional(),
@@ -375,6 +449,7 @@ export const getFuelPrices = createServerFn({ method: "GET" })
 
     // Live traffic-aware drive times for the closest 25 (the most anyone browses)
     await addDriveTimes(nearby.slice(0, 25), lat!, lng!);
+    await addOpenStatus(nearby.slice(0, 15));
 
     return { stations: nearby, placeLabel, center: { lat, lng }, missingRetailers: missing };
   });

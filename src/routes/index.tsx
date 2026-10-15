@@ -192,6 +192,9 @@ function Index() {
     const loaded = loadFavs();
     setFavs(loaded);
     refreshFavPrices();
+    // Keep favourite prices live while the page stays open
+    const interval = setInterval(refreshFavPrices, 60 * 1000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -464,7 +467,7 @@ function Index() {
               })}
             </ul>
             <p className="mt-2 text-xs text-muted-foreground">
-              Live prices, refreshed when you open the app — tap the star on any station to add or remove it.
+              Live prices, refreshed automatically every minute — tap the star on any station to add or remove it.
             </p>
 
           </div>
@@ -635,6 +638,20 @@ function Index() {
                             </span>
                           )}
                         </p>
+                        {s.openNow != null && (
+                          <p
+                            className={`mt-0.5 flex items-center gap-1 text-xs font-semibold ${
+                              s.openNow ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                                s.openNow ? "bg-green-500" : "bg-red-500"
+                              }`}
+                            />
+                            {s.openNow ? "Open now" : "Closed"}
+                          </p>
+                        )}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <div className="text-right">

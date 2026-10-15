@@ -212,8 +212,8 @@ async function fetchFuelFinder(): Promise<FeedResult & { configured: boolean }> 
     const stations: RawStation[] = [];
     for (const s of sites) {
       const id = String(pick(s, "node_id", "nodeId", "id") ?? "");
-      const price = priceById.get(id);
-      if (price == null) continue;
+      const prices = priceById.get(id);
+      if (prices == null) continue;
       const loc = s.location ?? s;
       const address = [pick(loc, "address_line_1", "address"), pick(loc, "address_line_2"), pick(loc, "city", "town")]
         .filter(Boolean)
@@ -223,7 +223,7 @@ async function fetchFuelFinder(): Promise<FeedResult & { configured: boolean }> 
         address,
         postcode: pick(loc, "postcode", "post_code") ?? "",
         location: { latitude: pick(loc, "latitude", "lat"), longitude: pick(loc, "longitude", "lng", "lon") },
-        prices: { E10: price },
+        prices,
       });
     }
     return { stations, failed: stations.length === 0, configured: true };

@@ -206,6 +206,8 @@ function Index() {
 
   // Favourite prices are always live: look up the latest price for each saved
   // station and update both the list and the saved copy.
+  const fuelTypeRef = useRef<FuelType>("E10");
+  fuelTypeRef.current = fuelType;
   async function refreshFavPrices() {
     try {
       const current = loadFavs();

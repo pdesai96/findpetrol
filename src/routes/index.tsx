@@ -243,6 +243,8 @@ function Index() {
       } catch {}
       return next;
     });
+    // Fetch the live price and open/closed status straight away for a new favourite
+    refreshFavPrices();
   }
 
   // Show the three cheapest saved stations

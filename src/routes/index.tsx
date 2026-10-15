@@ -50,8 +50,10 @@ function Index() {
   const [sortBy, setSortBy] = useState<"price" | "distance">("price");
   const [locating, setLocating] = useState(false);
 
-  // Auto-search with current location if the user has already granted permission
+  // Start loading all retailer prices as soon as the page opens, so the first
+  // search is fast; auto-search with current location if permission was granted
   useEffect(() => {
+    warmPrices().catch(() => {});
     if (!navigator.geolocation || !navigator.permissions?.query) return;
     navigator.permissions
       .query({ name: "geolocation" as PermissionName })
@@ -77,7 +79,12 @@ function Index() {
       if ("error" in res && res.error) {
         setResult({ status: "error", message: res.error });
       } else if ("stations" in res && res.stations) {
-        setResult({ status: "done", stations: res.stations, placeLabel: res.placeLabel ?? null });
+        setResult({
+          status: "done",
+          stations: res.stations,
+          placeLabel: res.placeLabel ?? null,
+          missingRetailers: res.missingRetailers ?? [],
+        });
         setUpdatedAt(new Date());
       } else {
         setResult({ status: "error", message: "Something went wrong. Please try again." });

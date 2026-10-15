@@ -135,8 +135,10 @@ function loadFavs(): FuelStation[] {
 
 // The three map buttons shared by result cards and favourite cards.
 function MapButtons({ station }: { station: FuelStation }) {
+  const base =
+    "inline-flex h-11 touch-manipulation items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-semibold whitespace-nowrap transition-colors";
   return (
-    <div className="flex gap-2 border-t border-border px-4 py-3">
+    <div className="flex gap-1.5 border-t border-border px-4 py-3">
       {MAP_KINDS.map((kind) => {
         const link = stationMapLinks(station)[kind];
         const meta = MAP_META[kind];
@@ -149,14 +151,14 @@ function MapButtons({ station }: { station: FuelStation }) {
             aria-label={`Open ${station.brand} in ${meta.label}`}
             className={
               meta.primary
-                ? "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                : "inline-flex h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                ? `${base} flex-[1.4] bg-primary text-primary-foreground hover:bg-primary/90`
+                : `${base} flex-1 border border-border text-foreground hover:bg-accent`
             }
           >
             {kind === "google" ? (
-              <MapPin className="h-4 w-4" />
+              <MapPin className="h-4 w-4 shrink-0" />
             ) : (
-              <Navigation className="h-4 w-4" />
+              <Navigation className="h-4 w-4 shrink-0" />
             )}
             {meta.short}
           </a>
@@ -165,6 +167,7 @@ function MapButtons({ station }: { station: FuelStation }) {
     </div>
   );
 }
+
 
 function Index() {
   const [town, setTown] = useState("");
